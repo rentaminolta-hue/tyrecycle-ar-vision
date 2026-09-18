@@ -1,0 +1,108 @@
+[
+  {
+    "title": "Model",
+    "keywords": [
+      "model",
+      "onnx",
+      "best-3.onnx",
+      "classes",
+      "detect",
+      "tire_car",
+      "tire_truck"
+    ],
+    "answer": "The supplied best-3.onnx model is an object detector with two classes: tire_car and tire_truck. It should not be described as detecting OTR, agricultural, motorcycle, or industrial tyres unless a future model is trained with those classes."
+  },
+  {
+    "title": "Bounding boxes",
+    "keywords": [
+      "bounding box",
+      "boxes",
+      "box",
+      "tracking"
+    ],
+    "answer": "Bounding boxes show where the model detects a tyre. Tracking associates detections across frames so the same tyre is not counted repeatedly. Detection quality depends on camera angle, lighting, tyre overlap, motion blur, and the model's training data."
+  },
+  {
+    "title": "Counting",
+    "keywords": [
+      "count",
+      "counting",
+      "count line",
+      "processed"
+    ],
+    "answer": "The app uses tracked detections and a counting line. A tyre is counted when its tracked centre crosses the configured line according to the current tracking rules."
+  },
+  {
+    "title": "TDF",
+    "keywords": [
+      "tdf",
+      "tyre derived fuel",
+      "tire derived fuel"
+    ],
+    "answer": "TDF means Tyre Derived Fuel (also commonly written Tire Derived Fuel). It is processed scrap-tyre material used as a fuel source in suitable industrial applications. Requirements vary by facility and jurisdiction."
+  },
+  {
+    "title": "TDA",
+    "keywords": [
+      "tda",
+      "tyre derived aggregate",
+      "tire derived aggregate"
+    ],
+    "answer": "TDA means Tyre Derived Aggregate. It is made from processed scrap tyres and can be used in certain civil-engineering applications where specifications and local requirements allow."
+  },
+  {
+    "title": "Recycling",
+    "keywords": [
+      "recycling",
+      "recycle",
+      "shredding",
+      "shredder",
+      "crumb rubber",
+      "granulation",
+      "steel"
+    ],
+    "answer": "Typical tyre recycling can include collection, inspection/sorting, shredding, separation of steel and fibre, further size reduction or granulation, and production of rubber products. The exact process depends on the feedstock and intended product."
+  },
+  {
+    "title": "Radial tyre",
+    "keywords": [
+      "radial",
+      "bias",
+      "sidewall",
+      "load index",
+      "speed rating"
+    ],
+    "answer": "A radial tyre uses radial-oriented carcass cords and is the dominant construction for many modern road vehicles. Tyre markings also communicate dimensions, load index, speed rating, and other specifications."
+  },
+  {
+    "title": "Vision AI limits",
+    "keywords": [
+      "accuracy",
+      "false detection",
+      "missed detection",
+      "limitation",
+      "limitations"
+    ],
+    "answer": "The browser cannot guarantee perfect detection or counting. Missed detections and false detections can occur, especially with occlusion, poor lighting, unusual tyre orientations, heavy overlap, blur, or scenes different from the training data. Validation against representative real footage is recommended."
+  },
+  {
+    "title": "Privacy",
+    "keywords": [
+      "privacy",
+      "camera",
+      "upload",
+      "data"
+    ],
+    "answer": "This PWA is designed to run inference in the browser. Camera/video frames and the ONNX model are processed locally by the page; the app itself does not need to upload camera frames to a server. ONNX Runtime Web is loaded from a public CDN."
+  },
+  {
+    "title": "Ozcom/Tyrecycle",
+    "keywords": [
+      "ozcom",
+      "tyrecycle",
+      "ozcom recycling",
+      "company"
+    ],
+    "answer": "Company-specific claims should be taken from the organisation's approved current documentation. This knowledge base avoids inventing branch counts, facilities, certifications, or operating statistics."
+  }
+]

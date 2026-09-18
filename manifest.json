@@ -1,0 +1,10 @@
+{
+  "name": "Tirecycle AR Vision AI \u2014 Ozcom Recycling",
+  "short_name": "Tirecycle AI",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#f59e0b",
+  "description": "Browser-based tyre detection, tracking and counting with ONNX Runtime Web.",
+  "icons": []
+}

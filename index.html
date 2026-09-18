@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tyre Counter — AI Conveyor Counter</title>
+<style>
+:root{--bg:#111418;--card:#1b1f24;--card2:#242930;--border:#343a42;--text:#f1f3f5;--muted:#9ba3ad;--accent:#ef6c2f;--ok:#52b788;--err:#ef5350;--warn:#e9c46a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{padding:18px 20px;border-bottom:1px solid var(--border)}h1{margin:0;font-size:22px}header p{margin:4px 0 0;color:var(--muted)}
+main{max-width:1050px;margin:auto;padding:16px;display:grid;gap:14px}.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}.head{padding:12px 15px;border-bottom:1px solid var(--border);font-weight:700}.body{padding:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}.field label{font-size:12px;color:var(--muted)}
+input,select,button{font:inherit}input[type=file],input[type=number],select{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:9px}
+button{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:9px 13px;cursor:pointer}button:hover{filter:brightness(1.1)}button.primary{background:var(--accent);border-color:var(--accent);color:#17110d;font-weight:700}button:disabled{opacity:.45;cursor:not-allowed}
+.status{margin-top:8px;color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap}.ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
+.stage{position:relative;background:#000;border:1px solid var(--border);border-radius:10px;overflow:hidden;aspect-ratio:16/9}.stage video{width:100%;height:100%;object-fit:contain;display:block}.stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.hint{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#ccd2d8;background:#0008;padding:25px}.hint.hide{display:none}
+.badge{position:absolute;top:10px;left:10px;background:#000b;border-radius:20px;padding:6px 10px;font:12px ui-monospace,Consolas,monospace}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}.dot.on{background:#e53935}
+.counter{display:flex;justify-content:space-between;align-items:center;gap:15px}.big{font:700 64px ui-monospace,Consolas,monospace;color:var(--accent);line-height:1}.label{color:var(--muted);font-size:12px;margin-top:5px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px}.stat b{display:block;font:700 22px ui-monospace,Consolas,monospace}.stat span{color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}.tab{padding:8px 12px}.tab.active{background:var(--accent);color:#17110d;border-color:var(--accent);font-weight:700}.tabpage{display:none}.tabpage.active{display:block}
+.range{width:100%;accent-color:var(--accent)}.small{font-size:12px;color:var(--muted)}details summary{cursor:pointer;color:var(--muted);padding:3px 0}.checks{display:flex;gap:16px;flex-wrap:wrap}.checks label{font-size:13px}.checks input{accent-color:var(--accent)}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.big{font-size:48px}.counter{align-items:flex-start;flex-direction:column}}
+</style>
+<link rel="manifest" href="./manifest.json"><meta name="theme-color" content="#f59e0b"></head>
+<body>
+<header><h1>Tyre Counter</h1><p>AI tyre detection and conveyor counting — browser processing with your own ONNX model.</p></header>
+<main>
+<section class="card">
+<div class="head">1. AI model</div><div class="body">
+<div class="row">
+<div class="field" style="flex:2"><label>ONNX model</label><input id="modelFile" type="file" accept=".onnx,application/octet-stream"></div>
+<div class="field" style="max-width:120px"><label>Input W</label><input id="inW" type="number" value="640" min="32" step="32"></div>
+<div class="field" style="max-width:120px"><label>Input H</label><input id="inH" type="number" value="640" min="32" step="32"></div>
+<button class="primary" id="loadBtn">Load model</button>
+</div>
+<div id="modelStatus" class="status">Built-in best-3.onnx is ready. Click "Load model" to start.</div>
+<details><summary>Model diagnostics</summary><pre id="modelInfo" class="status"></pre></details>
+</div></section>
+
+<section class="card">
+<div class="head">2. Source</div><div class="body">
+<div class="tabs">
+<button class="tab active" data-tab="cameraTab">Live camera</button>
+<button class="tab" data-tab="videoTab">Upload video</button>
+</div>
+<div id="cameraTab" class="tabpage active" style="margin-top:12px">
+<div class="stage"><video id="video" autoplay muted playsinline></video><canvas id="overlay"></canvas><div id="hint" class="hint">Load the built-in ONNX model, then start the camera.</div><div class="badge"><span id="dot" class="dot"></span><span id="live">idle</span></div></div>
+<div class="row" style="margin-top:10px"><button id="startCam" class="primary" disabled>Start camera</button><button id="switchCam" disabled>Switch camera</button><button id="stopCam" disabled>Stop</button></div>
+</div>
+<div id="videoTab" class="tabpage" style="margin-top:12px">
+<div class="stage"><video id="testVideo" controls muted playsinline></video><canvas id="videoOverlay"></canvas><div id="videoHint" class="hint">Choose a conveyor video to test the model.</div><div class="badge"><span id="videoDot" class="dot"></span><span id="videoLive">idle</span></div></div>
+<div class="row" style="margin-top:10px"><div class="field"><label>Video file</label><input id="videoFile" type="file" accept="video/*"></div><button id="playVideo" class="primary" disabled>Play & analyse</button><button id="pauseVideo" disabled>Pause</button><button id="stopVideo" disabled>Stop</button></div>
+</div>
+<div id="sourceStatus" class="status"></div>
+</div></section>
+
+<section class="card"><div class="body counter">
+<div><div id="total" class="big">0</div><div class="label">TYRES COUNTED TODAY</div></div>
+<div class="row"><button id="minus">−1</button><button id="plus">+1</button><button id="reset">Reset today</button></div>
+</div></section>
+
+<section class="card"><div class="head">3. Counting line</div><div class="body">
+<div class="checks"><label><input id="lineOn" type="checkbox" checked> Use counting line</label><label><input id="autoCount" type="checkbox" checked> AI automatic counting</label></div>
+<p class="small">Drag the orange line directly on the video. Drag the round handle to rotate it. A tyre is counted once when its confirmed tracked centre crosses the line. Short detection dropouts are bridged automatically.</p>
+<div class="row"><div class="field"><label>Position</label><input id="linePos" class="range" type="range" min="5" max="95" value="62"></div><div class="field"><label>Angle</label><input id="lineAngle" class="range" type="range" min="-90" max="90" value="0"></div></div>
+<div class="row" style="margin-top:8px"><button id="centerLine">Center</button><button id="horizontal">Horizontal</button><button id="vertical">Vertical</button></div>
+</div></section>
+
+<section class="card"><div class="head">4. Daily / hourly report</div><div class="body">
+<div class="stats"><div class="stat"><b id="daily">0</b><span>Today</span></div><div class="stat"><b id="hourly">0</b><span>Current hour</span></div><div class="stat"><b id="detections">0</b><span>In frame</span></div><div class="stat"><b id="fps">0</b><span>AI FPS</span></div></div>
+<div class="row" style="margin-top:10px"><button id="csv">Export today's CSV</button><button id="clearData">Clear saved daily data</button></div>
+</div></section>
+
+<section class="card"><div class="head">5. Detection settings</div><div class="body">
+<div class="row">
+<div class="field"><label>Confidence <span id="confText">0.35</span></label><input id="conf" class="range" type="range" min=".05" max=".95" step=".01" value=".35"></div>
+<div class="field"><label>NMS IoU <span id="iouText">0.45</span></label><input id="iou" class="range" type="range" min=".10" max=".90" step=".01" value=".45"></div>
+<div class="field"><label>Max detections</label><input id="maxDet" type="number" min="1" max="300" value="80"></div>
+</div>
+<div class="checks" style="margin-top:10px"><label><input id="normalized" type="checkbox"> Output boxes are normalized 0–1</label><label><input id="objectness" type="checkbox"> Output has objectness score</label></div>
+<p class="small"><b>Video-tuned starting point:</b> Confidence 0.35, NMS IoU 0.45, counting line 62%. These settings are deliberately more conservative about weak detections and count only confirmed downward crossings.</p><p class="small">Bounding boxes are mapped to the actual displayed video area (including letterbox margins) so the boxes stay aligned with the tyres. This build is tuned for the supplied conveyor video: tyres travel downward toward the camera. It uses a perspective corridor, downward-only track matching, box smoothing, short dropout recovery, three-frame confirmation, and a lower counting line. The detector remains the supplied <b>best-3.onnx</b> model. The loader also reads the model's actual input/output metadata rather than assuming the names.</p>
+</div></section>
+
+<section class="card"><div class="body small">
+<b>Privacy:</b> the selected model and camera/video are processed in the browser. The page does not upload your camera frames or model file to this app. ONNX Runtime Web is loaded from its public CDN.
+</div></section>
+
+<section class="card" id="askSystemCard">
+<div class="head">Ask the System</div><div class="body">
+<p class="small">Ask questions about the tyre model, recycling, operations, or the current session. Answers use the built-in knowledge base plus live counter data.</p>
+<div class="row"><input id="askInput" placeholder="e.g. What can the model detect?" style="flex:1"><button class="primary" id="askBtn">Ask</button></div>
+<div id="askSuggestions" class="small" style="margin-top:8px"></div>
+<div id="askAnswer" class="status" style="margin-top:10px;white-space:pre-wrap;display:none"></div>
+</div></section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/ort.min.js"></script>
+
+<script>
+(() => {
+"use strict";
+
+const $=id=>document.getElementById(id);
+const video=$("video"), overlay=$("overlay"), ctx=overlay.getContext("2d");
+const testVideo=$("testVideo"), videoOverlay=$("videoOverlay"), vctx=videoOverlay.getContext("2d");
+let session=null,inputName="",outputName="",inputW=640,inputH=640,inputMeta=null;
+let stream=null,facing="environment",running=false,videoRunning=false,raf=0,lastInfer=0,frames=0,lastFpsAt=performance.now(),fps=0;
+let total=0,tracks=[],nextId=1;
+const DAY_KEY="tyreCounterDailyV2", SETTINGS="tyreCounterSettingsV2";
+let line={pos:55,angle:0,on:true}, settings={conf:.35,iou:.45,maxDet:40,normalized:false,objectness:false};
+try{Object.assign(settings,JSON.parse(localStorage.getItem(SETTINGS)||"{}"));}catch(e){}
+try{const d=JSON.parse(localStorage.getItem(DAY_KEY)||"{}"); const k=new Date().toISOString().slice(0,10); total=Number(d[k]||0);}catch(e){}
+$("total").textContent=$("daily").textContent=total;
+$("conf").value=settings.conf;$("iou").value=settings.iou;$("maxDet").value=settings.maxDet;
+$("normalized").checked=settings.normalized;$("objectness").checked=settings.objectness;
+$("confText").textContent=Number(settings.conf).toFixed(2);$("iouText").textContent=Number(settings.iou).toFixed(2);
+
+function save(){try{localStorage.setItem(SETTINGS,JSON.stringify(settings));}catch(e){}}
+function saveDay(){const k=new Date().toISOString().slice(0,10);let d={};try{d=JSON.parse(localStorage.getItem(DAY_KEY)||"{}")}catch(e){}d[k]=total;try{localStorage.setItem(DAY_KEY,JSON.stringify(d))}catch(e){}$("total").textContent=$("daily").textContent=total;$("hourly").textContent=hourCount()}
+function hourKey(){return new Date().toISOString().slice(0,13)}
+let hourlyEvents=[]; function addEvent(){hourlyEvents.push(hourKey());$("hourly").textContent=hourCount()}
+function hourCount(){const k=hourKey();hourlyEvents=hourlyEvents.filter(x=>x===k);return hourlyEvents.length}
+function setTotal(n,log=true){total=Math.max(0,n);if(log)addEvent();saveDay()}
+$("plus").onclick=()=>setTotal(total+1);$("minus").onclick=()=>setTotal(total-1);
+$("reset").onclick=()=>{total=0;resetTracks();hourlyEvents=[];saveDay()};
+$("conf").oninput=e=>{settings.conf=+e.target.value;$("confText").textContent=settings.conf.toFixed(2);save()};
+$("iou").oninput=e=>{settings.iou=+e.target.value;$("iouText").textContent=settings.iou.toFixed(2);save()};
+$("maxDet").onchange=e=>{settings.maxDet=Math.max(1,Math.min(300,+e.target.value||80));e.target.value=settings.maxDet;save()};
+$("normalized").onchange=e=>{settings.normalized=e.target.checked;save()};$("objectness").onchange=e=>{settings.objectness=e.target.checked;save()};
+
+function tabs(){document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.tab).classList.add("active");resizeAll()})}tabs();
+
+function setModelStatus(t,c=""){ $("modelStatus").textContent=t;$("modelStatus").className="status "+c}
+$("loadBtn").onclick=async()=>{
+ let f=$("modelFile").files[0];
+ if(!f){
+  try{
+   const r=await fetch("./best-3.onnx",{cache:"no-store"});
+   if(!r.ok) throw new Error("best-3.onnx could not be loaded from this GitHub Pages folder (HTTP "+r.status+").");
+   const b=await r.arrayBuffer();
+   f=new File([b],"best-3.onnx",{type:"application/octet-stream"});
+  }catch(e){setModelStatus("MODEL LOAD FAILED\n"+(e?.message||e),"err");$("modelInfo").textContent=String(e?.stack||e);return}
+ }
+ $("loadBtn").disabled=true;setModelStatus("Loading ONNX model…");
+ try{
+  if(!window.ort)throw new Error("ONNX Runtime Web did not load. Check the internet connection and reload this page.");
+  ort.env.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
+  ort.env.wasm.numThreads=1;
+  const buf=await f.arrayBuffer();
+  session=await ort.InferenceSession.create(buf,{executionProviders:["wasm"],graphOptimizationLevel:"all"});
+  inputName=session.inputNames[0];outputName=session.outputNames[0];
+  inputMeta=session.inputMetadata?.[inputName]||null;
+  const shape=inputMeta?.shape||[];
+  if(shape.length===4){
+    if(Number.isFinite(Number(shape[2]))&&Number(shape[2])>0)inputH=Number(shape[2]);
+    if(Number.isFinite(Number(shape[3]))&&Number(shape[3])>0)inputW=Number(shape[3]);
+  }else{inputW=+$("inW").value||640;inputH=+$("inH").value||640}
+  $("inW").value=inputW;$("inH").value=inputH;
+  // Run a tiny diagnostic inference immediately. This proves the browser can execute the model.
+  const testArr=new Float32Array(3*inputW*inputH);
+  const testTensor=new ort.Tensor("float32",testArr,[1,3,inputH,inputW]);
+  const testOut=await session.run({[inputName]:testTensor});
+  if(!testOut[outputName]) throw new Error("Model ran but did not return the expected output: "+outputName);
+  const outMeta=session.outputMetadata?.[outputName]||null;
+  $("modelInfo").textContent=
+    "File: "+f.name+" ("+f.size.toLocaleString()+" bytes)\\n"+
+    "Input: "+inputName+"\\nInput shape: "+JSON.stringify(inputMeta?.shape||[])+"\\nInput type: "+(inputMeta?.type||"unknown")+"\\n"+
+    "Output: "+outputName+"\\nOutput shape: "+JSON.stringify(outMeta?.shape||[])+"\\nOutput type: "+(outMeta?.type||"unknown")+"\\n"+
+    "ONNX Runtime Web: 1.23.0";
+  setModelStatus("MODEL LOADED — best-3.onnx — ready for detection.","ok");
+  $("startCam").disabled=false;$("playVideo").disabled=!testVideo.src;
+ }catch(e){
+  session=null;
+  setModelStatus("MODEL LOAD FAILED\\n"+(e?.message||e),"err");
+  $("modelInfo").textContent=String(e?.stack||e);
+ }finally{$("loadBtn").disabled=false}
+};
+
+// Automatically load the built-in best-3.onnx model on startup.
+window.addEventListener("DOMContentLoaded",()=>{ setTimeout(()=>$("loadBtn").click(),50); });
+
+function resize(c,v){const r=v.getBoundingClientRect();c.width=Math.max(1,Math.round(r.width));c.height=Math.max(1,Math.round(r.height))}
+function resizeAll(){resize(overlay,video);resize(videoOverlay,testVideo)}window.addEventListener("resize",resizeAll);resizeAll();
+
+async function startCamera(){
+ if(!session){setModelStatus("Load the ONNX model first.","err");return}
+ try{
+  stopCamera();
+  resetTracks();
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream;await video.play();$("hint").classList.add("hide");$("dot").classList.add("on");$("live").textContent="live";
+  $("startCam").disabled=true;$("stopCam").disabled=false;$("switchCam").disabled=false;running=true;resizeAll();raf=requestAnimationFrame(cameraLoop);
+ }catch(e){$("sourceStatus").textContent="Camera error: "+e.message;$("sourceStatus").className="status err"}
+}
+function stopCamera(){running=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if(raf)cancelAnimationFrame(raf);$("dot").classList.remove("on");$("live").textContent="idle";$("startCam").disabled=!session;$("stopCam").disabled=true;$("switchCam").disabled=true}
+$("startCam").onclick=startCamera;$("stopCam").onclick=stopCamera;$("switchCam").onclick=()=>{facing=facing==="environment"?"user":"environment";startCamera()};
+
+$("videoFile").onchange=()=>{
+ const f=$("videoFile").files[0];if(!f)return;
+ resetTracks();testVideo.src=URL.createObjectURL(f);testVideo.load();$("videoHint").classList.add("hide");$("playVideo").disabled=!session;$("sourceStatus").textContent="Video ready: "+f.name;
+};
+$("playVideo").onclick=async()=>{if(!session)return;try{videoRunning=true;await testVideo.play();$("videoDot").classList.add("on");$("videoLive").textContent="analysing";$("pauseVideo").disabled=false;$("stopVideo").disabled=false;resizeAll();videoLoop()}catch(e){$("sourceStatus").textContent="Video error: "+e.message;$("sourceStatus").className="status err"}};
+$("pauseVideo").onclick=()=>{testVideo.pause();videoRunning=false;$("videoLive").textContent="paused"};
+$("stopVideo").onclick=()=>{testVideo.pause();testVideo.currentTime=0;videoRunning=false;resetTracks();$("videoDot").classList.remove("on");$("videoLive").textContent="idle"};
+testVideo.onended=()=>{$("stopVideo").click()};
+
+const work=document.createElement("canvas"),wctx=work.getContext("2d",{willReadFrequently:true});
+function sigmoid(x){return 1/(1+Math.exp(-x))}
+function preprocess(v){
+ work.width=inputW;work.height=inputH;
+ wctx.fillStyle="rgb(114,114,114)";wctx.fillRect(0,0,inputW,inputH);
+ const vw=v.videoWidth||v.width||640,vh=v.videoHeight||v.height||480;
+ const scale=Math.min(inputW/vw,inputH/vh),dw=Math.round(vw*scale),dh=Math.round(vh*scale),ox=(inputW-dw)/2,oy=(inputH-dh)/2;
+ wctx.drawImage(v,ox,oy,dw,dh);
+ const px=wctx.getImageData(0,0,inputW,inputH).data,plane=inputW*inputH,arr=new Float32Array(plane*3);
+ for(let i=0;i<plane;i++){arr[i]=px[i*4]/255;arr[plane+i]=px[i*4+1]/255;arr[2*plane+i]=px[i*4+2]/255}
+ return {tensor:new ort.Tensor("float32",arr,[1,3,inputH,inputW]),scale,ox,oy,vw,vh}
+}
+async function infer(v){
+ const p=preprocess(v),out=await session.run({[inputName]:p.tensor}),t=out[outputName],s=t.dims,d=t.data;
+ let a=s.length===3?s[1]:0,b=s.length===3?s[2]:0;
+ let boxes,features,trans;if(!a||!b)throw new Error("Unsupported output tensor shape: "+JSON.stringify(s));
+ if(a<=b){features=a;boxes=b;trans=true}else{features=b;boxes=a;trans=false}
+ const get=(fi,bi)=>trans?d[fi*boxes+bi]:d[bi*features+fi];
+ let classes=settings.objectness?features-5:features-4;if(classes<1)throw new Error("Output tensor does not look like YOLO detection output: "+JSON.stringify(s));
+ const det=[];
+ for(let i=0;i<boxes;i++){
+  let best=-Infinity,ci=0;
+  for(let c=0;c<classes;c++){const val=get(settings.objectness?5+c:4+c,i);if(val>best){best=val;ci=c}}
+  const conf=settings.objectness?get(4,i)*best:best;if(conf<settings.conf)continue;
+  let cx=get(0,i),cy=get(1,i),bw=get(2,i),bh=get(3,i);
+  if(settings.normalized){cx*=inputW;cy*=inputH;bw*=inputW;bh*=inputH}
+  // undo letterbox
+  cx=(cx-p.ox)/p.scale;cy=(cy-p.oy)/p.scale;bw/=p.scale;bh/=p.scale;
+  if(cx<0||cy<0||cx>p.vw||cy>p.vh)continue;
+  det.push({cx,cy,w:bw,h:bh,conf:conf,classIdx:ci});
+ }
+ return nms(det,settings.iou).slice(0,settings.maxDet);
+}
+function iou(a,b){const ax=a.cx-a.w/2,ay=a.cy-a.h/2,ax2=a.cx+a.w/2,ay2=a.cy+a.h/2,bx=b.cx-b.w/2,by=b.cy-b.h/2,bx2=b.cx+b.w/2,by2=b.cy+b.h/2;const iw=Math.max(0,Math.min(ax2,bx2)-Math.max(ax,bx)),ih=Math.max(0,Math.min(ay2,by2)-Math.max(ay,by));const inter=iw*ih,ua=a.w*a.h+b.w*b.h-inter;return inter/(ua+1e-6)}
+function nms(ds,thr){const s=ds.slice().sort((a,b)=>b.conf-a.conf),k=[];while(s.length){const x=s.shift();k.push(x);for(let i=s.length-1;i>=0;i--)if(iou(x,s[i])>thr)s.splice(i,1)}return k}
+
+function lineGeometry(w,h){
+ const rad=line.angle*Math.PI/180, cx=w/2,cy=h*line.pos/100, len=Math.hypot(w,h)*1.2;
+ return {cx,cy,dx:Math.cos(rad)*len/2,dy:Math.sin(rad)*len/2};
+}
+function side(px,py,g){
+ return (px-g.cx)*(-g.dy)+(py-g.cy)*g.dx;
+}
+function lineDistance(px,py,g){
+ const len=Math.hypot(g.dx,g.dy)||1;
+ return side(px,py,g)/len;
+}
+function resetTracks(){
+ tracks=[];nextId=1;
+}
+function boxIoU(a,b){
+ const ax=a.cx-a.w/2,ay=a.cy-a.h/2,ax2=a.cx+a.w/2,ay2=a.cy+a.h/2;
+ const bx=b.cx-b.w/2,by=b.cy-b.h/2,bx2=b.cx+b.w/2,by2=b.cy+b.h/2;
+ const iw=Math.max(0,Math.min(ax2,bx2)-Math.max(ax,bx));
+ const ih=Math.max(0,Math.min(ay2,by2)-Math.max(ay,by));
+ const inter=iw*ih, ua=a.w*a.h+b.w*b.h-inter;
+ return inter/(ua+1e-6);
+}
+function updateTracks(ds,w,h,ts){
+ const g=lineGeometry(w,h), nowTs=Number.isFinite(ts)?ts:performance.now();
+
+ // This camera has a fixed single conveyor lane. Restrict detections to
+ // a generous perspective corridor so scaffolding/side structures are not
+ // allowed to create or steal track IDs.
+ const roi=[];
+ ds.forEach(d=>{
+   const left=Math.max(0,360-0.45*d.cy);
+   const right=Math.min(w-1,555+0.03*d.cy);
+   if(d.cx>=left && d.cx<=right && d.cy>=0 && d.cy<=h) roi.push(d);
+ });
+ ds=roi;
+
+ const active=[], used=new Set(), matched=new Set();
+
+ // Predict forward. The conveyor moves toward the camera (downward in
+ // this video), so matching is deliberately directional.
+ const preds=tracks.map(t=>{
+   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
+   return {...t,px:t.cx+t.vx*dt,py:t.cy+t.vy*dt};
+ });
+
+ const pairs=[];
+ preds.forEach((t,ti)=>{
+   ds.forEach((d,di)=>{
+     if(used.has(di)) return;
+
+     const dx=d.cx-t.px, dy=d.cy-t.py;
+     // Reject large upward jumps: a tyre should not jump backwards to a
+     // different tyre just because their boxes overlap.
+     if(dy < -28) return;
+
+     const xGate=Math.max(45,Math.min(115,0.55*Math.max(t.w,d.w)));
+     const yGate=Math.max(40,Math.min(145,0.60*Math.max(t.h,d.h)));
+     if(Math.abs(dx)>xGate || dy>yGate) return;
+
+     const ov=boxIoU(
+       {cx:t.px,cy:t.py,w:t.w,h:t.h},
+       {cx:d.cx,cy:d.cy,w:d.w,h:d.h}
+     );
+     const scale=Math.max(45,(t.w+t.h+d.w+d.h)/4);
+     // Stronger emphasis on motion continuity than box overlap.
+     const cost=(Math.abs(dx)/scale)*0.45+
+                (Math.max(0,dy)/scale)*0.35+
+                (1-ov)*0.20;
+     pairs.push({ti,di,cost});
+   });
+ });
+ pairs.sort((a,b)=>a.cost-b.cost);
+
+ for(const p of pairs){
+   if(matched.has(p.ti)||used.has(p.di)) continue;
+   const t=tracks[p.ti], d=ds[p.di];
+   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
+
+   const oldCx=t.cx, oldCy=t.cy;
+   const instantVx=(d.cx-oldCx)/dt;
+   const instantVy=(d.cy-oldCy)/dt;
+
+   // Exponential smoothing removes frame-to-frame box jumping while
+   // retaining enough responsiveness for a moving tyre.
+   t.cx=oldCx*0.42+d.cx*0.58;
+   t.cy=oldCy*0.42+d.cy*0.58;
+   t.w=t.w*0.45+d.w*0.55;
+   t.h=t.h*0.45+d.h*0.55;
+   t.vx=t.vx*0.55+instantVx*0.45;
+   t.vy=t.vy*0.55+instantVy*0.45;
+   t.conf=Math.max(t.conf*0.35,d.conf*0.65);
+
+   t.lastTs=nowTs;
+   t.missed=0;
+   t.hits++;
+   t.matched=true;
+   t.historyAbove=t.historyAbove || (t.cy < g.cy-45);
+
+   // Count only DOWNWARD crossings. Require the tyre to have been
+   // confidently observed above the line before it reaches the line.
+   const crossedDown=t.prevCy < g.cy-18 && t.cy >= g.cy+8;
+   if($("autoCount").checked && line.on && !t.counted &&
+      t.hits>=3 && t.historyAbove && crossedDown){
+     t.counted=true;
+     setTotal(total+1);
+   }
+
+   t.prevCy=t.cy;
+   matched.add(p.ti);
+   used.add(p.di);
+ }
+
+ // Bridge brief detector dropouts with motion prediction.
+ tracks.forEach((t,i)=>{
+   if(matched.has(i)) return;
+   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
+   t.cx+=t.vx*dt;
+   t.cy+=t.vy*dt;
+   t.vx*=0.88;
+   t.vy*=0.88;
+   t.lastTs=nowTs;
+   t.missed++;
+   t.matched=false;
+ });
+
+ // New detections become new tracks, but detections already matched to
+ // another tyre can never create duplicate IDs.
+ ds.forEach((d,di)=>{
+   if(used.has(di)) return;
+   tracks.push({
+     id:nextId++,
+     cx:d.cx,cy:d.cy,w:d.w,h:d.h,conf:d.conf,
+     vx:0,vy:0,lastTs:nowTs,missed:0,hits:1,
+     counted:false,matched:true,
+     historyAbove:d.cy < g.cy-45,
+     prevCy:d.cy
+   });
+ });
+
+ tracks=tracks.filter(t=>t.missed<8 && t.cy<h+180);
+
+ tracks.forEach(t=>{
+   active.push({
+     cx:t.cx,cy:t.cy,w:t.w,h:t.h,
+     conf:t.conf,classIdx:0,tracked:true,
+     missed:t.missed,hits:t.hits,counted:t.counted,id:t.id
+   });
+ });
+
+ return {g,active};
+}
+function draw(c,w,h,ds,g){
+ c.clearRect(0,0,w,h);
+ if(line.on&&g){c.save();c.translate(g.cx,g.cy);c.rotate(line.angle*Math.PI/180);c.strokeStyle="#ef6c2f";c.lineWidth=4;c.setLineDash([14,10]);c.beginPath();c.moveTo(-Math.hypot(w,h),0);c.lineTo(Math.hypot(w,h),0);c.stroke();c.setLineDash([]);c.fillStyle="#ef6c2f";c.beginPath();c.arc(0,0,8,0,Math.PI*2);c.fill();c.restore()}
+ c.lineWidth=2;c.strokeStyle="#52b788";c.fillStyle="#52b788";c.font="12px ui-monospace,Consolas,monospace";
+ ds.forEach(d=>{const x=d.cx-d.w/2,y=d.cy-d.h/2;c.strokeRect(x,y,d.w,d.h);c.fillText(d.conf.toFixed(2),x+3,Math.max(12,y-4))});
+ $("detections").textContent=ds.length;$("fps").textContent=fps;
+}
+function displayTransform(v,c){
+ const vw=v.videoWidth||640,vh=v.videoHeight||480;
+ const cw=c.canvas.width,ch=c.canvas.height;
+ const scale=Math.min(cw/vw,ch/vh);
+ return {scale,ox:(cw-vw*scale)/2,oy:(ch-vh*scale)/2,vw,vh};
+}
+async function process(v,c){
+ if(!session)return;
+ const ds=await infer(v),w=c.canvas.width,h=c.canvas.height;
+ // The video uses object-fit:contain. Map detections into the actual
+ // displayed video rectangle so boxes stay exactly on the tyre.
+ const tr=displayTransform(v,c);
+ const scaled=ds.map(d=>({
+   ...d,
+   cx:d.cx*tr.scale+tr.ox,
+   cy:d.cy*tr.scale+tr.oy,
+   w:d.w*tr.scale,
+   h:d.h*tr.scale
+ }));
+ const tg=updateTracks(scaled,w,h,performance.now());draw(c,w,h,tg.active,tg.g);
+ frames++;const now=performance.now();if(now-lastFpsAt>1000){fps=frames*1000/(now-lastFpsAt);frames=0;lastFpsAt=now}
+}
+async function cameraLoop(ts){if(!running)return;if(ts-lastInfer>120){lastInfer=ts;try{await process(video,ctx)}catch(e){$("sourceStatus").textContent="AI inference error: "+e.message;$("sourceStatus").className="status err";running=false;return}}raf=requestAnimationFrame(cameraLoop)}
+async function videoLoop(){if(!videoRunning)return;if(!testVideo.paused){try{await process(testVideo,vctx)}catch(e){$("sourceStatus").textContent="AI inference error: "+e.message;$("sourceStatus").className="status err";videoRunning=false;return}}requestAnimationFrame(videoLoop)}
+
+function updateLine(){line.pos=+$("linePos").value;line.angle=+$("lineAngle").value;draw(ctx,overlay.width,overlay.height,[],lineGeometry(overlay.width,overlay.height));draw(vctx,videoOverlay.width,videoOverlay.height,[],lineGeometry(videoOverlay.width,videoOverlay.height))}
+$("linePos").oninput=updateLine;$("lineAngle").oninput=updateLine;
+$("lineOn").onchange=e=>{line.on=e.target.checked;updateLine()};
+$("centerLine").onclick=()=>{$("linePos").value=50;updateLine()};$("horizontal").onclick=()=>{$("lineAngle").value=0;updateLine()};$("vertical").onclick=()=>{$("lineAngle").value=90;updateLine()};
+
+function pointerHandler(canvas){
+ let drag=false;
+ canvas.addEventListener("pointerdown",e=>{drag=true;canvas.setPointerCapture(e.pointerId);move(e)});
+ canvas.addEventListener("pointermove",e=>{if(drag)move(e)});
+ canvas.addEventListener("pointerup",()=>drag=false);
+ function move(e){const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,w=r.width,h=r.height;const cy=h*line.pos/100;const dist=Math.abs((y-cy));if(dist<35){line.pos=Math.max(5,Math.min(95,y/h*100));$("linePos").value=line.pos.toFixed(1);updateLine()}}
+}
+pointerHandler(overlay);pointerHandler(videoOverlay);
+
+$("csv").onclick=()=>{
+ const day=localDay(),rows=["date,hour,count"];
+ for(let h=0;h<24;h++){const hh=String(h).padStart(2,"0");const count=eventTimes.filter(ts=>localDay(new Date(ts))===day&&new Date(ts).getHours()===h).length;rows.push(day+","+hh+":00,"+count)}
+ rows.push(day+",daily_total,"+total);
+ const blob=new Blob([rows.join("\\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="tyre-count-"+day+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+};
+$("clearData").onclick=()=>{localStorage.removeItem(DAY_KEY);localStorage.removeItem(EVENTS_KEY);total=0;eventTimes=[];resetTracks();saveDay()};
+setInterval(()=>{$("hourly").textContent=hourCount()},1000);
+updateLine();
+})();
+</script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id); let KB=[];
+async function loadKB(){try{const r=await fetch('./knowledge.json',{cache:'no-store'}); if(!r.ok) throw 0; KB=await r.json();}catch(e){KB=[];}
+ $('askSuggestions').textContent='Try: “What can the model detect?” • “How many truck tyres are visible?” • “What is TDF?”';}
+function liveStats(){const txt=document.body.innerText; const total=(document.getElementById('total')||{}).textContent||'0'; const daily=(document.getElementById('daily')||{}).textContent||total; return {total,daily};}
+function answer(q){q=q.trim(); if(!q)return 'Please enter a question.'; const l=q.toLowerCase(); const st=liveStats();
+ if(/how many.*(visible|right now|on screen|currently)/.test(l)){let n=0; document.querySelectorAll('#overlay, #videoOverlay').forEach(()=>{}); const t=window.__tyreVisionLive; if(t&&Number.isFinite(t.visible)) n=t.visible; return 'There are '+n+' tyres currently visible to the detector.';}
+ if(/how many.*(today|processed today|counted today)/.test(l)) return 'The current session shows '+st.daily+' tyres counted today.';
+ if(/how many.*truck/.test(l)&&/today|processed|counted/.test(l)){const n=window.__tyreVisionLive?.truckToday; return Number.isFinite(n)?'Truck tyres counted today: '+n+'.':'The current build does not keep a separate persistent truck-tyre daily total.';}
+ let best=null,score=0; for(const e of KB){let sc=0; for(const k of (e.keywords||[])){if(l.includes(k.toLowerCase())) sc+=k.length>3?2:1;} if(sc>score){score=sc;best=e;}}
+ if(best) return best.answer;
+ return 'I can answer questions about the supplied best-3.onnx model, tyre detection/counting, tyre recycling, TDF/TDA, and the current session. Try asking “What classes does the model have?”';}
+$('askBtn').onclick=()=>{const a=$('askAnswer');a.style.display='block';a.textContent=answer($('askInput').value)}; $('askInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('askBtn').click()}); loadKB();
+})();
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script></body>
+</html>

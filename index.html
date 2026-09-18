@@ -1,466 +1,51 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tyre Counter — AI Conveyor Counter</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tirecycle AR Vision AI — Ozcom Recycling</title>
+<meta name="theme-color" content="#0f2e2a"><link rel="manifest" href="manifest.json">
 <style>
-:root{--bg:#111418;--card:#1b1f24;--card2:#242930;--border:#343a42;--text:#f1f3f5;--muted:#9ba3ad;--accent:#ef6c2f;--ok:#52b788;--err:#ef5350;--warn:#e9c46a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-header{padding:18px 20px;border-bottom:1px solid var(--border)}h1{margin:0;font-size:22px}header p{margin:4px 0 0;color:var(--muted)}
-main{max-width:1050px;margin:auto;padding:16px;display:grid;gap:14px}.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}.head{padding:12px 15px;border-bottom:1px solid var(--border);font-weight:700}.body{padding:14px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}.field label{font-size:12px;color:var(--muted)}
-input,select,button{font:inherit}input[type=file],input[type=number],select{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:9px}
-button{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:9px 13px;cursor:pointer}button:hover{filter:brightness(1.1)}button.primary{background:var(--accent);border-color:var(--accent);color:#17110d;font-weight:700}button:disabled{opacity:.45;cursor:not-allowed}
-.status{margin-top:8px;color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.55;white-space:pre-wrap}.ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
-.stage{position:relative;background:#000;border:1px solid var(--border);border-radius:10px;overflow:hidden;aspect-ratio:16/9}.stage video{width:100%;height:100%;object-fit:contain;display:block}.stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.hint{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#ccd2d8;background:#0008;padding:25px}.hint.hide{display:none}
-.badge{position:absolute;top:10px;left:10px;background:#000b;border-radius:20px;padding:6px 10px;font:12px ui-monospace,Consolas,monospace}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}.dot.on{background:#e53935}
-.counter{display:flex;justify-content:space-between;align-items:center;gap:15px}.big{font:700 64px ui-monospace,Consolas,monospace;color:var(--accent);line-height:1}.label{color:var(--muted);font-size:12px;margin-top:5px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px}.stat b{display:block;font:700 22px ui-monospace,Consolas,monospace}.stat span{color:var(--muted);font-size:12px}
-.tabs{display:flex;gap:7px;flex-wrap:wrap}.tab{padding:8px 12px}.tab.active{background:var(--accent);color:#17110d;border-color:var(--accent);font-weight:700}.tabpage{display:none}.tabpage.active{display:block}
-.range{width:100%;accent-color:var(--accent)}.small{font-size:12px;color:var(--muted)}details summary{cursor:pointer;color:var(--muted);padding:3px 0}.checks{display:flex;gap:16px;flex-wrap:wrap}.checks label{font-size:13px}.checks input{accent-color:var(--accent)}
-@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.big{font-size:48px}.counter{align-items:flex-start;flex-direction:column}}
-</style>
-<link rel="manifest" href="./manifest.json"><meta name="theme-color" content="#f59e0b"></head>
-<body>
-<header><h1>Tyre Counter</h1><p>AI tyre detection and conveyor counting — browser processing with your own ONNX model.</p></header>
-<main>
-<section class="card">
-<div class="head">1. AI model</div><div class="body">
-<div class="row">
-<div class="field" style="flex:2"><label>ONNX model</label><input id="modelFile" type="file" accept=".onnx,application/octet-stream"></div>
-<div class="field" style="max-width:120px"><label>Input W</label><input id="inW" type="number" value="640" min="32" step="32"></div>
-<div class="field" style="max-width:120px"><label>Input H</label><input id="inH" type="number" value="640" min="32" step="32"></div>
-<button class="primary" id="loadBtn">Load model</button>
-</div>
-<div id="modelStatus" class="status">Built-in best-3.onnx is ready. Click "Load model" to start.</div>
-<details><summary>Model diagnostics</summary><pre id="modelInfo" class="status"></pre></details>
-</div></section>
-
-<section class="card">
-<div class="head">2. Source</div><div class="body">
-<div class="tabs">
-<button class="tab active" data-tab="cameraTab">Live camera</button>
-<button class="tab" data-tab="videoTab">Upload video</button>
-</div>
-<div id="cameraTab" class="tabpage active" style="margin-top:12px">
-<div class="stage"><video id="video" autoplay muted playsinline></video><canvas id="overlay"></canvas><div id="hint" class="hint">Load the built-in ONNX model, then start the camera.</div><div class="badge"><span id="dot" class="dot"></span><span id="live">idle</span></div></div>
-<div class="row" style="margin-top:10px"><button id="startCam" class="primary" disabled>Start camera</button><button id="switchCam" disabled>Switch camera</button><button id="stopCam" disabled>Stop</button></div>
-</div>
-<div id="videoTab" class="tabpage" style="margin-top:12px">
-<div class="stage"><video id="testVideo" controls muted playsinline></video><canvas id="videoOverlay"></canvas><div id="videoHint" class="hint">Choose a conveyor video to test the model.</div><div class="badge"><span id="videoDot" class="dot"></span><span id="videoLive">idle</span></div></div>
-<div class="row" style="margin-top:10px"><div class="field"><label>Video file</label><input id="videoFile" type="file" accept="video/*"></div><button id="playVideo" class="primary" disabled>Play & analyse</button><button id="pauseVideo" disabled>Pause</button><button id="stopVideo" disabled>Stop</button></div>
-</div>
-<div id="sourceStatus" class="status"></div>
-</div></section>
-
-<section class="card"><div class="body counter">
-<div><div id="total" class="big">0</div><div class="label">TYRES COUNTED TODAY</div></div>
-<div class="row"><button id="minus">−1</button><button id="plus">+1</button><button id="reset">Reset today</button></div>
-</div></section>
-
-<section class="card"><div class="head">3. Counting line</div><div class="body">
-<div class="checks"><label><input id="lineOn" type="checkbox" checked> Use counting line</label><label><input id="autoCount" type="checkbox" checked> AI automatic counting</label></div>
-<p class="small">Drag the orange line directly on the video. Drag the round handle to rotate it. A tyre is counted once when its confirmed tracked centre crosses the line. Short detection dropouts are bridged automatically.</p>
-<div class="row"><div class="field"><label>Position</label><input id="linePos" class="range" type="range" min="5" max="95" value="62"></div><div class="field"><label>Angle</label><input id="lineAngle" class="range" type="range" min="-90" max="90" value="0"></div></div>
-<div class="row" style="margin-top:8px"><button id="centerLine">Center</button><button id="horizontal">Horizontal</button><button id="vertical">Vertical</button></div>
-</div></section>
-
-<section class="card"><div class="head">4. Daily / hourly report</div><div class="body">
-<div class="stats"><div class="stat"><b id="daily">0</b><span>Today</span></div><div class="stat"><b id="hourly">0</b><span>Current hour</span></div><div class="stat"><b id="detections">0</b><span>In frame</span></div><div class="stat"><b id="fps">0</b><span>AI FPS</span></div></div>
-<div class="row" style="margin-top:10px"><button id="csv">Export today's CSV</button><button id="clearData">Clear saved daily data</button></div>
-</div></section>
-
-<section class="card"><div class="head">5. Detection settings</div><div class="body">
-<div class="row">
-<div class="field"><label>Confidence <span id="confText">0.35</span></label><input id="conf" class="range" type="range" min=".05" max=".95" step=".01" value=".35"></div>
-<div class="field"><label>NMS IoU <span id="iouText">0.45</span></label><input id="iou" class="range" type="range" min=".10" max=".90" step=".01" value=".45"></div>
-<div class="field"><label>Max detections</label><input id="maxDet" type="number" min="1" max="300" value="80"></div>
-</div>
-<div class="checks" style="margin-top:10px"><label><input id="normalized" type="checkbox"> Output boxes are normalized 0–1</label><label><input id="objectness" type="checkbox"> Output has objectness score</label></div>
-<p class="small"><b>Video-tuned starting point:</b> Confidence 0.35, NMS IoU 0.45, counting line 62%. These settings are deliberately more conservative about weak detections and count only confirmed downward crossings.</p><p class="small">Bounding boxes are mapped to the actual displayed video area (including letterbox margins) so the boxes stay aligned with the tyres. This build is tuned for the supplied conveyor video: tyres travel downward toward the camera. It uses a perspective corridor, downward-only track matching, box smoothing, short dropout recovery, three-frame confirmation, and a lower counting line. The detector remains the supplied <b>best-3.onnx</b> model. The loader also reads the model's actual input/output metadata rather than assuming the names.</p>
-</div></section>
-
-<section class="card"><div class="body small">
-<b>Privacy:</b> the selected model and camera/video are processed in the browser. The page does not upload your camera frames or model file to this app. ONNX Runtime Web is loaded from its public CDN.
-</div></section>
-
-<section class="card" id="askSystemCard">
-<div class="head">Ask the System</div><div class="body">
-<p class="small">Ask questions about the tyre model, recycling, operations, or the current session. Answers use the built-in knowledge base plus live counter data.</p>
-<div class="row"><input id="askInput" placeholder="e.g. What can the model detect?" style="flex:1"><button class="primary" id="askBtn">Ask</button></div>
-<div id="askSuggestions" class="small" style="margin-top:8px"></div>
-<div id="askAnswer" class="status" style="margin-top:10px;white-space:pre-wrap;display:none"></div>
-</div></section>
-</main>
-
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/ort.min.js"></script>
-
+:root{--bg:#0f2e2a;--card:#163833;--ui:#1e4a43;--a:#22c55e;--w:#f59e0b;--d:#ef4444;--t:#e8f5f2;--m:#8fb5b0;--b:#2a635c}*{box-sizing:border-box;font-family:Segoe UI,system-ui,sans-serif}body{margin:0;background:var(--bg);color:var(--t);padding:10px}.app{max-width:1200px;margin:auto}header{display:flex;justify-content:space-between;align-items:center;padding:10px 0 14px;border-bottom:1px solid var(--b);margin-bottom:12px}.brand h1{margin:0;color:var(--a);font-size:1.25rem}.brand p{margin:3px 0 0;color:var(--m);font-size:.75rem}.status-line{display:flex;gap:10px;align-items:center;font-size:.78rem}.status{padding:4px 9px;border-radius:20px;font-weight:600}.ready,.online{background:#22c55e22;color:var(--a)}.loading{background:#3b82f622;color:#93c5fd}.error{background:#ef444422;color:#fca5a5}.camera-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;margin-bottom:12px;aspect-ratio:4/3}.camera-wrap video,.camera-wrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.camera-wrap canvas{pointer-events:none}.mode-bar{position:absolute;top:10px;left:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;z-index:5}.mode-btn,.toggle-btn{padding:6px 10px;border:0;border-radius:6px;background:#0009;color:#fff;font-size:.72rem;cursor:pointer}.active{background:var(--a)!important;color:#000!important;font-weight:700}.model-banner{position:absolute;bottom:10px;left:10px;right:10px;background:#f59e0b22;border:1px solid var(--w);padding:8px 10px;border-radius:8px;font-size:.78rem;z-index:5}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:12px}.card,.query,.log{background:var(--card);border:1px solid var(--b);border-radius:10px;padding:12px}.card .lab{font-size:.68rem;text-transform:uppercase;color:var(--m)}.val{font-size:1.45rem;font-weight:700;margin-top:5px}.sub{font-size:.68rem;color:var(--m);margin-top:3px}.entry{border-left:3px solid var(--a)}.exit{border-left:3px solid var(--w)}.total{border-left:3px solid #60a5fa}.classes{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px}.class-item{background:var(--card);border-radius:8px;padding:9px;text-align:center}.class-item .num{font-size:1.15rem;font-weight:700}.class-item .lab{font-size:.68rem;color:var(--m)}.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}button{padding:10px 14px;border:0;border-radius:8px;font-size:.88rem;cursor:pointer;font-weight:600}.primary{background:var(--a);color:#000}.secondary{background:var(--ui);color:var(--t);border:1px solid var(--b)}.danger{background:#ef444422;color:#fca5a5}.query h3{margin:0 0 8px;font-size:.9rem}.query input{width:100%;padding:10px;border:1px solid var(--b);border-radius:6px;background:var(--ui);color:#fff;margin-bottom:8px}.result{padding:10px;background:#22c55e12;border-radius:6px;min-height:42px;font-size:.88rem;margin-top:8px}.log{max-height:170px;overflow:auto;font:12px ui-monospace,Consolas,monospace;color:var(--m)}.ok{color:var(--a)}.warn{color:var(--w)}.err{color:var(--d)}.hidden{display:none}.small{font-size:.7rem;color:var(--m);margin-top:6px}.ask-tools{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.ask-chip{padding:6px 9px;border:1px solid var(--b);border-radius:999px;background:var(--ui);color:var(--t);font-size:.72rem;cursor:pointer}.ask-chip:hover{border-color:var(--a)}.result strong{color:var(--a)}.ask-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:.68rem;color:var(--m)}
+</style></head><body><main class="app">
+<header><div class="brand"><h1>♻️ Tirecycle AR Vision AI</h1><p>Ozcom Recycling — Brisbane</p></div><div class="status-line"><span id="sysStatus" class="status ready">Initialising</span><span id="fps">0 FPS</span><span id="mode">Conveyor</span></div></header>
+<section class="camera-wrap"><video id="video" autoplay muted playsinline></video><canvas id="overlay"></canvas><div class="mode-bar"><button class="mode-btn active" data-mode="conveyor">Conveyor</button><button class="mode-btn" data-mode="pile">Pile</button><button class="mode-btn" data-mode="truck">Truck/Load</button><button class="toggle-btn active" data-toggle="boxes">Boxes</button><button class="toggle-btn active" data-toggle="labels">Labels</button><button class="toggle-btn active" data-toggle="countline">Count Line</button></div><div id="modelBanner" class="model-banner">Loading <b>best-3.onnx</b> automatically. If it is not found, use “Load ONNX Model”.</div></section>
+<section class="grid"><div class="card entry"><div class="lab">Entry Count</div><div class="val" id="entryCount">0</div><div class="sub">Count-line crossings</div></div><div class="card exit"><div class="lab">Exit Count</div><div class="val" id="exitCount">0</div><div class="sub">Reserved for exit direction</div></div><div class="card total"><div class="lab">Visible Now</div><div class="val" id="visibleCount">0</div><div class="sub">Active tracks</div></div><div class="card"><div class="lab">Unique Total</div><div class="val" id="uniqueTotal">0</div><div class="sub">Tracks created</div></div></section>
+<section class="classes"><div class="class-item"><div class="num" id="clsPC">0</div><div class="lab">Passenger</div></div><div class="class-item"><div class="num" id="clsLT">0</div><div class="lab">Light Truck</div></div><div class="class-item"><div class="num" id="clsTBR">0</div><div class="lab">Truck/Bus</div></div><div class="class-item"><div class="num" id="clsOTR">0</div><div class="lab">OTR</div></div><div class="class-item"><div class="num" id="clsAG">0</div><div class="lab">Agri</div></div><div class="class-item"><div class="num" id="clsMC">0</div><div class="lab">Motorcycle</div></div><div class="class-item"><div class="num" id="clsIND">0</div><div class="lab">Industrial</div></div><div class="class-item"><div class="num" id="clsUNK">0</div><div class="lab">Unknown</div></div></section>
+<section class="controls"><button class="primary" id="startBtn">▶ Start Camera</button><button class="secondary" id="pauseBtn">⏸ Pause</button><button class="secondary" id="loadModelBtn">📂 Load ONNX Model</button><button class="secondary" id="resetBtn">↺ Reset Counts</button><button class="secondary" id="exportBtn">📤 Export CSV</button><input id="modelInput" class="hidden" type="file" accept=".onnx"></section>
+<section class="query"><h3>🔍 Ask the System</h3><input id="queryInput" placeholder="Ask about counts, the model, tyres, TDF, TDA, recycling…"><div class="ask-tools"><button class="ask-chip" data-q="How many truck tyres have been counted?">Truck count</button><button class="ask-chip" data-q="How many tyres are visible right now?">Visible now</button><button class="ask-chip" data-q="What can the AI model detect?">Model classes</button><button class="ask-chip" data-q="What is TDF?">TDF</button><button class="ask-chip" data-q="What is TDA?">TDA</button><button class="ask-chip" data-q="How does tyre recycling work?">Recycling</button></div><button class="primary" id="queryBtn">Ask</button><div id="queryResult" class="result">System ready. Ask me about the live counter, the loaded model, or tyre-recycling terms.</div><div class="ask-meta"><span id="askSource">Local knowledge + live counter</span><span id="askTime"></span></div><div class="small">The Ask section uses the app's local knowledge and live counter values. Company-specific operational claims should be confirmed against approved Ozcom/Tyrecycle documentation.</div></section>
+<section id="log" class="log"><div class="ok">Initialised — YOLO/Ultralytics ONNX detector interface</div></section></main>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
 <script>
-(() => {
-"use strict";
-
-const $=id=>document.getElementById(id);
-const video=$("video"), overlay=$("overlay"), ctx=overlay.getContext("2d");
-const testVideo=$("testVideo"), videoOverlay=$("videoOverlay"), vctx=videoOverlay.getContext("2d");
-let session=null,inputName="",outputName="",inputW=640,inputH=640,inputMeta=null;
-let stream=null,facing="environment",running=false,videoRunning=false,raf=0,lastInfer=0,frames=0,lastFpsAt=performance.now(),fps=0;
-let total=0,tracks=[],nextId=1;
-const DAY_KEY="tyreCounterDailyV2", SETTINGS="tyreCounterSettingsV2";
-let line={pos:55,angle:0,on:true}, settings={conf:.35,iou:.45,maxDet:40,normalized:false,objectness:false};
-try{Object.assign(settings,JSON.parse(localStorage.getItem(SETTINGS)||"{}"));}catch(e){}
-try{const d=JSON.parse(localStorage.getItem(DAY_KEY)||"{}"); const k=new Date().toISOString().slice(0,10); total=Number(d[k]||0);}catch(e){}
-$("total").textContent=$("daily").textContent=total;
-$("conf").value=settings.conf;$("iou").value=settings.iou;$("maxDet").value=settings.maxDet;
-$("normalized").checked=settings.normalized;$("objectness").checked=settings.objectness;
-$("confText").textContent=Number(settings.conf).toFixed(2);$("iouText").textContent=Number(settings.iou).toFixed(2);
-
-function save(){try{localStorage.setItem(SETTINGS,JSON.stringify(settings));}catch(e){}}
-function saveDay(){const k=new Date().toISOString().slice(0,10);let d={};try{d=JSON.parse(localStorage.getItem(DAY_KEY)||"{}")}catch(e){}d[k]=total;try{localStorage.setItem(DAY_KEY,JSON.stringify(d))}catch(e){}$("total").textContent=$("daily").textContent=total;$("hourly").textContent=hourCount()}
-function hourKey(){return new Date().toISOString().slice(0,13)}
-let hourlyEvents=[]; function addEvent(){hourlyEvents.push(hourKey());$("hourly").textContent=hourCount()}
-function hourCount(){const k=hourKey();hourlyEvents=hourlyEvents.filter(x=>x===k);return hourlyEvents.length}
-function setTotal(n,log=true){total=Math.max(0,n);if(log)addEvent();saveDay()}
-$("plus").onclick=()=>setTotal(total+1);$("minus").onclick=()=>setTotal(total-1);
-$("reset").onclick=()=>{total=0;resetTracks();hourlyEvents=[];saveDay()};
-$("conf").oninput=e=>{settings.conf=+e.target.value;$("confText").textContent=settings.conf.toFixed(2);save()};
-$("iou").oninput=e=>{settings.iou=+e.target.value;$("iouText").textContent=settings.iou.toFixed(2);save()};
-$("maxDet").onchange=e=>{settings.maxDet=Math.max(1,Math.min(300,+e.target.value||80));e.target.value=settings.maxDet;save()};
-$("normalized").onchange=e=>{settings.normalized=e.target.checked;save()};$("objectness").onchange=e=>{settings.objectness=e.target.checked;save()};
-
-function tabs(){document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.tab).classList.add("active");resizeAll()})}tabs();
-
-function setModelStatus(t,c=""){ $("modelStatus").textContent=t;$("modelStatus").className="status "+c}
-$("loadBtn").onclick=async()=>{
- let f=$("modelFile").files[0];
- if(!f){
-  try{
-   const r=await fetch("./best-3.onnx",{cache:"no-store"});
-   if(!r.ok) throw new Error("best-3.onnx could not be loaded from this GitHub Pages folder (HTTP "+r.status+").");
-   const b=await r.arrayBuffer();
-   f=new File([b],"best-3.onnx",{type:"application/octet-stream"});
-  }catch(e){setModelStatus("MODEL LOAD FAILED\n"+(e?.message||e),"err");$("modelInfo").textContent=String(e?.stack||e);return}
- }
- $("loadBtn").disabled=true;setModelStatus("Loading ONNX model…");
- try{
-  if(!window.ort)throw new Error("ONNX Runtime Web did not load. Check the internet connection and reload this page.");
-  ort.env.wasm.wasmPaths="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
-  ort.env.wasm.numThreads=1;
-  const buf=await f.arrayBuffer();
-  session=await ort.InferenceSession.create(buf,{executionProviders:["wasm"],graphOptimizationLevel:"all"});
-  inputName=session.inputNames[0];outputName=session.outputNames[0];
-  inputMeta=session.inputMetadata?.[inputName]||null;
-  const shape=inputMeta?.shape||[];
-  if(shape.length===4){
-    if(Number.isFinite(Number(shape[2]))&&Number(shape[2])>0)inputH=Number(shape[2]);
-    if(Number.isFinite(Number(shape[3]))&&Number(shape[3])>0)inputW=Number(shape[3]);
-  }else{inputW=+$("inW").value||640;inputH=+$("inH").value||640}
-  $("inW").value=inputW;$("inH").value=inputH;
-  // Run a tiny diagnostic inference immediately. This proves the browser can execute the model.
-  const testArr=new Float32Array(3*inputW*inputH);
-  const testTensor=new ort.Tensor("float32",testArr,[1,3,inputH,inputW]);
-  const testOut=await session.run({[inputName]:testTensor});
-  if(!testOut[outputName]) throw new Error("Model ran but did not return the expected output: "+outputName);
-  const outMeta=session.outputMetadata?.[outputName]||null;
-  $("modelInfo").textContent=
-    "File: "+f.name+" ("+f.size.toLocaleString()+" bytes)\\n"+
-    "Input: "+inputName+"\\nInput shape: "+JSON.stringify(inputMeta?.shape||[])+"\\nInput type: "+(inputMeta?.type||"unknown")+"\\n"+
-    "Output: "+outputName+"\\nOutput shape: "+JSON.stringify(outMeta?.shape||[])+"\\nOutput type: "+(outMeta?.type||"unknown")+"\\n"+
-    "ONNX Runtime Web: 1.23.0";
-  setModelStatus("MODEL LOADED — best-3.onnx — ready for detection.","ok");
-  $("startCam").disabled=false;$("playVideo").disabled=!testVideo.src;
- }catch(e){
-  session=null;
-  setModelStatus("MODEL LOAD FAILED\\n"+(e?.message||e),"err");
-  $("modelInfo").textContent=String(e?.stack||e);
- }finally{$("loadBtn").disabled=false}
-};
-
-// Automatically load the built-in best-3.onnx model on startup.
-window.addEventListener("DOMContentLoaded",()=>{ setTimeout(()=>$("loadBtn").click(),50); });
-
-function resize(c,v){const r=v.getBoundingClientRect();c.width=Math.max(1,Math.round(r.width));c.height=Math.max(1,Math.round(r.height))}
-function resizeAll(){resize(overlay,video);resize(videoOverlay,testVideo)}window.addEventListener("resize",resizeAll);resizeAll();
-
-async function startCamera(){
- if(!session){setModelStatus("Load the ONNX model first.","err");return}
- try{
-  stopCamera();
-  resetTracks();
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}},audio:false});
-  video.srcObject=stream;await video.play();$("hint").classList.add("hide");$("dot").classList.add("on");$("live").textContent="live";
-  $("startCam").disabled=true;$("stopCam").disabled=false;$("switchCam").disabled=false;running=true;resizeAll();raf=requestAnimationFrame(cameraLoop);
- }catch(e){$("sourceStatus").textContent="Camera error: "+e.message;$("sourceStatus").className="status err"}
-}
-function stopCamera(){running=false;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}if(raf)cancelAnimationFrame(raf);$("dot").classList.remove("on");$("live").textContent="idle";$("startCam").disabled=!session;$("stopCam").disabled=true;$("switchCam").disabled=true}
-$("startCam").onclick=startCamera;$("stopCam").onclick=stopCamera;$("switchCam").onclick=()=>{facing=facing==="environment"?"user":"environment";startCamera()};
-
-$("videoFile").onchange=()=>{
- const f=$("videoFile").files[0];if(!f)return;
- resetTracks();testVideo.src=URL.createObjectURL(f);testVideo.load();$("videoHint").classList.add("hide");$("playVideo").disabled=!session;$("sourceStatus").textContent="Video ready: "+f.name;
-};
-$("playVideo").onclick=async()=>{if(!session)return;try{videoRunning=true;await testVideo.play();$("videoDot").classList.add("on");$("videoLive").textContent="analysing";$("pauseVideo").disabled=false;$("stopVideo").disabled=false;resizeAll();videoLoop()}catch(e){$("sourceStatus").textContent="Video error: "+e.message;$("sourceStatus").className="status err"}};
-$("pauseVideo").onclick=()=>{testVideo.pause();videoRunning=false;$("videoLive").textContent="paused"};
-$("stopVideo").onclick=()=>{testVideo.pause();testVideo.currentTime=0;videoRunning=false;resetTracks();$("videoDot").classList.remove("on");$("videoLive").textContent="idle"};
-testVideo.onended=()=>{$("stopVideo").click()};
-
-const work=document.createElement("canvas"),wctx=work.getContext("2d",{willReadFrequently:true});
-function sigmoid(x){return 1/(1+Math.exp(-x))}
-function preprocess(v){
- work.width=inputW;work.height=inputH;
- wctx.fillStyle="rgb(114,114,114)";wctx.fillRect(0,0,inputW,inputH);
- const vw=v.videoWidth||v.width||640,vh=v.videoHeight||v.height||480;
- const scale=Math.min(inputW/vw,inputH/vh),dw=Math.round(vw*scale),dh=Math.round(vh*scale),ox=(inputW-dw)/2,oy=(inputH-dh)/2;
- wctx.drawImage(v,ox,oy,dw,dh);
- const px=wctx.getImageData(0,0,inputW,inputH).data,plane=inputW*inputH,arr=new Float32Array(plane*3);
- for(let i=0;i<plane;i++){arr[i]=px[i*4]/255;arr[plane+i]=px[i*4+1]/255;arr[2*plane+i]=px[i*4+2]/255}
- return {tensor:new ort.Tensor("float32",arr,[1,3,inputH,inputW]),scale,ox,oy,vw,vh}
-}
-async function infer(v){
- const p=preprocess(v),out=await session.run({[inputName]:p.tensor}),t=out[outputName],s=t.dims,d=t.data;
- let a=s.length===3?s[1]:0,b=s.length===3?s[2]:0;
- let boxes,features,trans;if(!a||!b)throw new Error("Unsupported output tensor shape: "+JSON.stringify(s));
- if(a<=b){features=a;boxes=b;trans=true}else{features=b;boxes=a;trans=false}
- const get=(fi,bi)=>trans?d[fi*boxes+bi]:d[bi*features+fi];
- let classes=settings.objectness?features-5:features-4;if(classes<1)throw new Error("Output tensor does not look like YOLO detection output: "+JSON.stringify(s));
- const det=[];
- for(let i=0;i<boxes;i++){
-  let best=-Infinity,ci=0;
-  for(let c=0;c<classes;c++){const val=get(settings.objectness?5+c:4+c,i);if(val>best){best=val;ci=c}}
-  const conf=settings.objectness?get(4,i)*best:best;if(conf<settings.conf)continue;
-  let cx=get(0,i),cy=get(1,i),bw=get(2,i),bh=get(3,i);
-  if(settings.normalized){cx*=inputW;cy*=inputH;bw*=inputW;bh*=inputH}
-  // undo letterbox
-  cx=(cx-p.ox)/p.scale;cy=(cy-p.oy)/p.scale;bw/=p.scale;bh/=p.scale;
-  if(cx<0||cy<0||cx>p.vw||cy>p.vh)continue;
-  det.push({cx,cy,w:bw,h:bh,conf:conf,classIdx:ci});
- }
- return nms(det,settings.iou).slice(0,settings.maxDet);
-}
-function iou(a,b){const ax=a.cx-a.w/2,ay=a.cy-a.h/2,ax2=a.cx+a.w/2,ay2=a.cy+a.h/2,bx=b.cx-b.w/2,by=b.cy-b.h/2,bx2=b.cx+b.w/2,by2=b.cy+b.h/2;const iw=Math.max(0,Math.min(ax2,bx2)-Math.max(ax,bx)),ih=Math.max(0,Math.min(ay2,by2)-Math.max(ay,by));const inter=iw*ih,ua=a.w*a.h+b.w*b.h-inter;return inter/(ua+1e-6)}
-function nms(ds,thr){const s=ds.slice().sort((a,b)=>b.conf-a.conf),k=[];while(s.length){const x=s.shift();k.push(x);for(let i=s.length-1;i>=0;i--)if(iou(x,s[i])>thr)s.splice(i,1)}return k}
-
-function lineGeometry(w,h){
- const rad=line.angle*Math.PI/180, cx=w/2,cy=h*line.pos/100, len=Math.hypot(w,h)*1.2;
- return {cx,cy,dx:Math.cos(rad)*len/2,dy:Math.sin(rad)*len/2};
-}
-function side(px,py,g){
- return (px-g.cx)*(-g.dy)+(py-g.cy)*g.dx;
-}
-function lineDistance(px,py,g){
- const len=Math.hypot(g.dx,g.dy)||1;
- return side(px,py,g)/len;
-}
-function resetTracks(){
- tracks=[];nextId=1;
-}
-function boxIoU(a,b){
- const ax=a.cx-a.w/2,ay=a.cy-a.h/2,ax2=a.cx+a.w/2,ay2=a.cy+a.h/2;
- const bx=b.cx-b.w/2,by=b.cy-b.h/2,bx2=b.cx+b.w/2,by2=b.cy+b.h/2;
- const iw=Math.max(0,Math.min(ax2,bx2)-Math.max(ax,bx));
- const ih=Math.max(0,Math.min(ay2,by2)-Math.max(ay,by));
- const inter=iw*ih, ua=a.w*a.h+b.w*b.h-inter;
- return inter/(ua+1e-6);
-}
-function updateTracks(ds,w,h,ts){
- const g=lineGeometry(w,h), nowTs=Number.isFinite(ts)?ts:performance.now();
-
- // This camera has a fixed single conveyor lane. Restrict detections to
- // a generous perspective corridor so scaffolding/side structures are not
- // allowed to create or steal track IDs.
- const roi=[];
- ds.forEach(d=>{
-   const left=Math.max(0,360-0.45*d.cy);
-   const right=Math.min(w-1,555+0.03*d.cy);
-   if(d.cx>=left && d.cx<=right && d.cy>=0 && d.cy<=h) roi.push(d);
- });
- ds=roi;
-
- const active=[], used=new Set(), matched=new Set();
-
- // Predict forward. The conveyor moves toward the camera (downward in
- // this video), so matching is deliberately directional.
- const preds=tracks.map(t=>{
-   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
-   return {...t,px:t.cx+t.vx*dt,py:t.cy+t.vy*dt};
- });
-
- const pairs=[];
- preds.forEach((t,ti)=>{
-   ds.forEach((d,di)=>{
-     if(used.has(di)) return;
-
-     const dx=d.cx-t.px, dy=d.cy-t.py;
-     // Reject large upward jumps: a tyre should not jump backwards to a
-     // different tyre just because their boxes overlap.
-     if(dy < -28) return;
-
-     const xGate=Math.max(45,Math.min(115,0.55*Math.max(t.w,d.w)));
-     const yGate=Math.max(40,Math.min(145,0.60*Math.max(t.h,d.h)));
-     if(Math.abs(dx)>xGate || dy>yGate) return;
-
-     const ov=boxIoU(
-       {cx:t.px,cy:t.py,w:t.w,h:t.h},
-       {cx:d.cx,cy:d.cy,w:d.w,h:d.h}
-     );
-     const scale=Math.max(45,(t.w+t.h+d.w+d.h)/4);
-     // Stronger emphasis on motion continuity than box overlap.
-     const cost=(Math.abs(dx)/scale)*0.45+
-                (Math.max(0,dy)/scale)*0.35+
-                (1-ov)*0.20;
-     pairs.push({ti,di,cost});
-   });
- });
- pairs.sort((a,b)=>a.cost-b.cost);
-
- for(const p of pairs){
-   if(matched.has(p.ti)||used.has(p.di)) continue;
-   const t=tracks[p.ti], d=ds[p.di];
-   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
-
-   const oldCx=t.cx, oldCy=t.cy;
-   const instantVx=(d.cx-oldCx)/dt;
-   const instantVy=(d.cy-oldCy)/dt;
-
-   // Exponential smoothing removes frame-to-frame box jumping while
-   // retaining enough responsiveness for a moving tyre.
-   t.cx=oldCx*0.42+d.cx*0.58;
-   t.cy=oldCy*0.42+d.cy*0.58;
-   t.w=t.w*0.45+d.w*0.55;
-   t.h=t.h*0.45+d.h*0.55;
-   t.vx=t.vx*0.55+instantVx*0.45;
-   t.vy=t.vy*0.55+instantVy*0.45;
-   t.conf=Math.max(t.conf*0.35,d.conf*0.65);
-
-   t.lastTs=nowTs;
-   t.missed=0;
-   t.hits++;
-   t.matched=true;
-   t.historyAbove=t.historyAbove || (t.cy < g.cy-45);
-
-   // Count only DOWNWARD crossings. Require the tyre to have been
-   // confidently observed above the line before it reaches the line.
-   const crossedDown=t.prevCy < g.cy-18 && t.cy >= g.cy+8;
-   if($("autoCount").checked && line.on && !t.counted &&
-      t.hits>=3 && t.historyAbove && crossedDown){
-     t.counted=true;
-     setTotal(total+1);
-   }
-
-   t.prevCy=t.cy;
-   matched.add(p.ti);
-   used.add(p.di);
- }
-
- // Bridge brief detector dropouts with motion prediction.
- tracks.forEach((t,i)=>{
-   if(matched.has(i)) return;
-   const dt=Math.max(0.001,Math.min(0.6,(nowTs-t.lastTs)/1000));
-   t.cx+=t.vx*dt;
-   t.cy+=t.vy*dt;
-   t.vx*=0.88;
-   t.vy*=0.88;
-   t.lastTs=nowTs;
-   t.missed++;
-   t.matched=false;
- });
-
- // New detections become new tracks, but detections already matched to
- // another tyre can never create duplicate IDs.
- ds.forEach((d,di)=>{
-   if(used.has(di)) return;
-   tracks.push({
-     id:nextId++,
-     cx:d.cx,cy:d.cy,w:d.w,h:d.h,conf:d.conf,
-     vx:0,vy:0,lastTs:nowTs,missed:0,hits:1,
-     counted:false,matched:true,
-     historyAbove:d.cy < g.cy-45,
-     prevCy:d.cy
-   });
- });
-
- tracks=tracks.filter(t=>t.missed<8 && t.cy<h+180);
-
- tracks.forEach(t=>{
-   active.push({
-     cx:t.cx,cy:t.cy,w:t.w,h:t.h,
-     conf:t.conf,classIdx:0,tracked:true,
-     missed:t.missed,hits:t.hits,counted:t.counted,id:t.id
-   });
- });
-
- return {g,active};
-}
-function draw(c,w,h,ds,g){
- c.clearRect(0,0,w,h);
- if(line.on&&g){c.save();c.translate(g.cx,g.cy);c.rotate(line.angle*Math.PI/180);c.strokeStyle="#ef6c2f";c.lineWidth=4;c.setLineDash([14,10]);c.beginPath();c.moveTo(-Math.hypot(w,h),0);c.lineTo(Math.hypot(w,h),0);c.stroke();c.setLineDash([]);c.fillStyle="#ef6c2f";c.beginPath();c.arc(0,0,8,0,Math.PI*2);c.fill();c.restore()}
- c.lineWidth=2;c.strokeStyle="#52b788";c.fillStyle="#52b788";c.font="12px ui-monospace,Consolas,monospace";
- ds.forEach(d=>{const x=d.cx-d.w/2,y=d.cy-d.h/2;c.strokeRect(x,y,d.w,d.h);c.fillText(d.conf.toFixed(2),x+3,Math.max(12,y-4))});
- $("detections").textContent=ds.length;$("fps").textContent=fps;
-}
-function displayTransform(v,c){
- const vw=v.videoWidth||640,vh=v.videoHeight||480;
- const cw=c.canvas.width,ch=c.canvas.height;
- const scale=Math.min(cw/vw,ch/vh);
- return {scale,ox:(cw-vw*scale)/2,oy:(ch-vh*scale)/2,vw,vh};
-}
-async function process(v,c){
- if(!session)return;
- const ds=await infer(v),w=c.canvas.width,h=c.canvas.height;
- // The video uses object-fit:contain. Map detections into the actual
- // displayed video rectangle so boxes stay exactly on the tyre.
- const tr=displayTransform(v,c);
- const scaled=ds.map(d=>({
-   ...d,
-   cx:d.cx*tr.scale+tr.ox,
-   cy:d.cy*tr.scale+tr.oy,
-   w:d.w*tr.scale,
-   h:d.h*tr.scale
- }));
- const tg=updateTracks(scaled,w,h,performance.now());draw(c,w,h,tg.active,tg.g);
- frames++;const now=performance.now();if(now-lastFpsAt>1000){fps=frames*1000/(now-lastFpsAt);frames=0;lastFpsAt=now}
-}
-async function cameraLoop(ts){if(!running)return;if(ts-lastInfer>120){lastInfer=ts;try{await process(video,ctx)}catch(e){$("sourceStatus").textContent="AI inference error: "+e.message;$("sourceStatus").className="status err";running=false;return}}raf=requestAnimationFrame(cameraLoop)}
-async function videoLoop(){if(!videoRunning)return;if(!testVideo.paused){try{await process(testVideo,vctx)}catch(e){$("sourceStatus").textContent="AI inference error: "+e.message;$("sourceStatus").className="status err";videoRunning=false;return}}requestAnimationFrame(videoLoop)}
-
-function updateLine(){line.pos=+$("linePos").value;line.angle=+$("lineAngle").value;draw(ctx,overlay.width,overlay.height,[],lineGeometry(overlay.width,overlay.height));draw(vctx,videoOverlay.width,videoOverlay.height,[],lineGeometry(videoOverlay.width,videoOverlay.height))}
-$("linePos").oninput=updateLine;$("lineAngle").oninput=updateLine;
-$("lineOn").onchange=e=>{line.on=e.target.checked;updateLine()};
-$("centerLine").onclick=()=>{$("linePos").value=50;updateLine()};$("horizontal").onclick=()=>{$("lineAngle").value=0;updateLine()};$("vertical").onclick=()=>{$("lineAngle").value=90;updateLine()};
-
-function pointerHandler(canvas){
- let drag=false;
- canvas.addEventListener("pointerdown",e=>{drag=true;canvas.setPointerCapture(e.pointerId);move(e)});
- canvas.addEventListener("pointermove",e=>{if(drag)move(e)});
- canvas.addEventListener("pointerup",()=>drag=false);
- function move(e){const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,w=r.width,h=r.height;const cy=h*line.pos/100;const dist=Math.abs((y-cy));if(dist<35){line.pos=Math.max(5,Math.min(95,y/h*100));$("linePos").value=line.pos.toFixed(1);updateLine()}}
-}
-pointerHandler(overlay);pointerHandler(videoOverlay);
-
-$("csv").onclick=()=>{
- const day=localDay(),rows=["date,hour,count"];
- for(let h=0;h<24;h++){const hh=String(h).padStart(2,"0");const count=eventTimes.filter(ts=>localDay(new Date(ts))===day&&new Date(ts).getHours()===h).length;rows.push(day+","+hh+":00,"+count)}
- rows.push(day+",daily_total,"+total);
- const blob=new Blob([rows.join("\\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="tyre-count-"+day+".csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
-};
-$("clearData").onclick=()=>{localStorage.removeItem(DAY_KEY);localStorage.removeItem(EVENTS_KEY);total=0;eventTimes=[];resetTracks();saveDay()};
-setInterval(()=>{$("hourly").textContent=hourCount()},1000);
-updateLine();
-})();
-</script>
-<script>
-(()=>{
-const $=id=>document.getElementById(id); let KB=[];
-async function loadKB(){try{const r=await fetch('./knowledge.json',{cache:'no-store'}); if(!r.ok) throw 0; KB=await r.json();}catch(e){KB=[];}
- $('askSuggestions').textContent='Try: “What can the model detect?” • “How many truck tyres are visible?” • “What is TDF?”';}
-function liveStats(){const txt=document.body.innerText; const total=(document.getElementById('total')||{}).textContent||'0'; const daily=(document.getElementById('daily')||{}).textContent||total; return {total,daily};}
-function answer(q){q=q.trim(); if(!q)return 'Please enter a question.'; const l=q.toLowerCase(); const st=liveStats();
- if(/how many.*(visible|right now|on screen|currently)/.test(l)){let n=0; document.querySelectorAll('#overlay, #videoOverlay').forEach(()=>{}); const t=window.__tyreVisionLive; if(t&&Number.isFinite(t.visible)) n=t.visible; return 'There are '+n+' tyres currently visible to the detector.';}
- if(/how many.*(today|processed today|counted today)/.test(l)) return 'The current session shows '+st.daily+' tyres counted today.';
- if(/how many.*truck/.test(l)&&/today|processed|counted/.test(l)){const n=window.__tyreVisionLive?.truckToday; return Number.isFinite(n)?'Truck tyres counted today: '+n+'.':'The current build does not keep a separate persistent truck-tyre daily total.';}
- let best=null,score=0; for(const e of KB){let sc=0; for(const k of (e.keywords||[])){if(l.includes(k.toLowerCase())) sc+=k.length>3?2:1;} if(sc>score){score=sc;best=e;}}
- if(best) return best.answer;
- return 'I can answer questions about the supplied best-3.onnx model, tyre detection/counting, tyre recycling, TDF/TDA, and the current session. Try asking “What classes does the model have?”';}
-$('askBtn').onclick=()=>{const a=$('askAnswer');a.style.display='block';a.textContent=answer($('askInput').value)}; $('askInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('askBtn').click()}); loadKB();
-})();
-</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script></body>
-</html>
+'use strict';
+const CONFIG={input:640,conf:.35,iou:.50,maxDet:100,line:.50,model:'best-3.onnx',names:{0:{name:'Passenger',code:'PC',color:'#22c55e'},1:{name:'Truck/Bus',code:'TBR',color:'#f59e0b'}}};
+const state={running:false,loading:false,modelLoaded:false,session:null,mode:'conveyor',tracks:new Map(),nextId:1,counts:{entry:0,exit:0,unique:0},classes:{PC:0,LT:0,TBR:0,OTR:0,AG:0,MC:0,IND:0,UNK:0},toggles:{boxes:true,labels:true,countline:true},frame:0,lastFps:performance.now(),fps:0,lastInfer:0,inferEvery:1,knowledge:{model:'The loaded best-3.onnx model is a two-class detector: tire_car and tire_truck. Input is 640×640. It is not a full OTR/agricultural/motorcycle/industrial classifier.',tire_car:'tire_car is the supplied model’s car/passenger-type detection class.',tire_truck:'tire_truck is the supplied model’s truck-type detection class.',TDF:'TDF means Tyre-Derived Fuel. Suitable processed tyre material can be used as an alternative fuel in some industrial applications such as cement kilns, electricity generation and industrial process heat. Exact specifications and approvals are facility- and jurisdiction-specific.',TDA:'TDA means Tyre-Derived Aggregate. It is processed tyre material used in selected civil-engineering applications such as lightweight fill and drainage-related uses. Exact specifications depend on the project and jurisdiction.',recycling:'Tyre recycling can include collection, sorting, size reduction, separation of rubber, steel and textile components, and production of rubber crumb, granules, steel and TDF.',shredding:'Shredding reduces whole tyres into smaller pieces for handling and further processing.','primary shredding':'Primary shredding is the first major size-reduction stage.', 'secondary shredding':'Secondary shredding further reduces tyre material for separation or granulation.','crumb rubber':'Crumb rubber is processed recycled tyre rubber in relatively small particles used in selected roads, sports/playground surfaces and manufactured products.',granulation:'Granulation produces controlled-size rubber particles for separation or product manufacture.',steel:'Tyres contain reinforcing steel. Magnetic separation can recover ferrous steel for appropriate recycling streams.',fibre:'Tyres contain textile/fibre reinforcement. Processing can separate fibre from rubber and steel.',OTR:'OTR means Off-The-Road and covers tyres used on heavy equipment such as mining and construction machinery. The current model has no OTR class.',agricultural:'Agricultural tyres are designed for farming machinery. The current model has no dedicated agricultural class.',motorcycle:'Motorcycle tyres are designed for two-wheeled vehicles. The current model has no dedicated motorcycle class.',radial:'A radial tyre uses radial-oriented carcass construction with reinforcing belts.',bias:'A bias or cross-ply tyre uses diagonal carcass plies and remains common in some specialty applications.',sidewall:'Sidewall markings can contain size, construction, load index and speed rating. The current detector does not perform sidewall OCR.', 'load index':'Load index is a numerical rating associated with maximum tyre load under specified conditions.', 'speed rating':'Speed rating is a letter code for the tyre speed category under specified conditions.', 'aspect ratio':'Aspect ratio is sidewall height as a percentage of section width. In 205/55R16, 55 is the aspect ratio.',asphalt:'Recycled rubber crumb can be incorporated into asphalt and bituminous road systems. Project specifications apply.',road:'Recycled tyre rubber is used in selected road and pavement applications.',playground:'Recycled rubber granules can be used in selected playground and soft-fall surfacing systems.',sports:'Recycled rubber granules can be used in selected sports and athletic surfaces.', 'cement kiln':'Cement kilns are one industrial application for suitable tyre-derived fuel, subject to plant and environmental requirements.',pyrolysis:'Pyrolysis thermally decomposes tyre material in a controlled environment with limited oxygen. Outputs can include oil-like products, gas, char and recovered steel.', 'cryogenic grinding':'Cryogenic grinding uses very low temperatures to make rubber brittle before size reduction.', 'magnetic separation':'Magnetic separation uses magnets to recover ferrous steel from processed tyre material.',tyrecycle:'Tyrecycle publicly describes Australian tyre collection and recycling, including rubber crumb, granules and tyre-derived fuel. This does not automatically describe every individual site.',ozcom:'This app is branded for Ozcom Recycling. It does not invent site-specific procedures, machinery settings, production figures or safety rules. Use approved Ozcom documentation for those.','no boxes':'If boxes are missing, confirm the camera is running and best-3.onnx is loaded, then check lighting, framing, tyre visibility and confidence threshold. Persistent misses usually require better representative training data.','not counting':'If boxes appear but tyres are not counted, check Conveyor mode, tracking continuity and whether the tyre crosses the count line.','false detection':'False detections can come from backgrounds or objects resembling training examples. Improve framing and lighting and use better training data for a durable fix.','missed detection':'Missed detections can result from blur, occlusion, lighting, camera angle, unusual tyre appearance or tyres not represented well in training data.',confidence:'Confidence is the model score for a detection. It is not guaranteed correctness.','bounding box':'A bounding box is the rectangle drawn around a detected tyre.',tracking:'Tracking associates detections across frames so the same tyre is less likely to be counted repeatedly.','count line':'The count line is a virtual line used in Conveyor mode. A tracked tyre is counted when it crosses the configured line.',nms:'Non-Maximum Suppression removes overlapping duplicate detections.',fps:'FPS means frames per second. Performance depends on the device, browser, camera, model and hardware acceleration.',default:'I can answer about the current ONNX model, tyre types, recycling, shredding, TDF, TDA, recovered materials, counting, tracking and troubleshooting. For site-specific procedures, use approved Ozcom/Tyrecycle documentation.'};
+const $=id=>document.getElementById(id), video=$('video'),canvas=$('overlay'),ctx=canvas.getContext('2d');
+const inputCanvas=document.createElement('canvas');inputCanvas.width=inputCanvas.height=CONFIG.input;const ictx=inputCanvas.getContext('2d',{willReadFrequently:true});
+function log(type,msg){const d=document.createElement('div');d.className=type;d.textContent=new Date().toLocaleTimeString()+' — '+msg;$('log').prepend(d);while($('log').children.length>30)$('log').lastChild.remove()}
+function status(type,msg){$('sysStatus').className='status '+type;$('sysStatus').textContent=msg}
+function resize(){const r=video.getBoundingClientRect();canvas.width=Math.max(1,Math.round(r.width));canvas.height=Math.max(1,Math.round(r.height))}addEventListener('resize',resize);
+function displayRect(){const vw=video.videoWidth||1,vh=video.videoHeight||1,cw=canvas.width,ch=canvas.height;const s=Math.max(cw/vw,ch/vh);const rw=vw*s,rh=vh*s;return{x:(cw-rw)/2,y:(ch-rh)/2,w:rw,h:rh,s}}
+async function startCamera(){try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera API unavailable. Use HTTPS or localhost.');const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});video.srcObject=stream;await video.play();resize();state.running=true;status('online',state.modelLoaded?'Camera + model':'Camera — model not loaded');log('ok','Camera started');requestAnimationFrame(loop)}catch(e){status('error','Camera error');log('err',e.message)}}
+function stopCamera(){if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());video.srcObject=null;state.running=false;status(state.modelLoaded?'online':'ready',state.modelLoaded?'Model loaded':'Paused');log('warn','Camera paused')}
+async function loadModel(source){if(state.loading)return;state.loading=true;try{status('loading','Loading ONNX…');let buf=source instanceof ArrayBuffer?source:await source.arrayBuffer();state.session=await ort.InferenceSession.create(buf,{executionProviders:['wasm']});state.modelLoaded=true;state.loading=false;$('modelBanner').style.display='none';status('online',state.running?'Camera + model':'Model loaded');log('ok','ONNX model loaded');log('ok','Input: 640×640; classes detected: tire_car, tire_truck');}catch(e){state.loading=false;state.modelLoaded=false;status('error','Model load failed');log('err','ONNX load failed: '+e.message);}}
+async function autoLoad(){try{const r=await fetch(CONFIG.model,{cache:'no-store'});if(!r.ok)throw Error('best-3.onnx not found');await loadModel(await r.arrayBuffer())}catch(e){log('warn','Automatic model load skipped: '+e.message);$('modelBanner').innerHTML='⚠️ <b>best-3.onnx</b> not auto-loaded. Place it beside index.html or use “Load ONNX Model”.'}}
+function letterbox(){const vw=video.videoWidth,vh=video.videoHeight,s=Math.min(CONFIG.input/vw,CONFIG.input/vh),nw=Math.round(vw*s),nh=Math.round(vh*s),px=(CONFIG.input-nw)/2,py=(CONFIG.input-nh)/2;ictx.fillStyle='#114';ictx.fillRect(0,0,640,640);ictx.drawImage(video,0,0,vw,vh,px,py,nw,nh);return{px,py,s}}
+function tensor(){const img=ictx.getImageData(0,0,640,640).data;const f=new Float32Array(1*3*640*640);let j=0;for(let i=0;i<img.length;i+=4){f[j]=img[i]/255;j+=409600;f[j]=img[i+1]/255;j+=409600;f[j]=img[i+2]/255;j-=819199}return new ort.Tensor('float32',f,[1,3,640,640])}
+function iou(a,b){const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y),x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);const q=Math.max(0,x2-x1)*Math.max(0,y2-y1);return q/(a.w*a.h+b.w*b.h-q+1e-9)}
+function nms(ds){ds.sort((a,b)=>b.conf-a.conf);const out=[];while(ds.length&&out.length<CONFIG.maxDet){const a=ds.shift();out.push(a);for(let i=ds.length-1;i>=0;i--)if(ds[i].class===a.class&&iou(a,ds[i])>CONFIG.iou)ds.splice(i,1)}return out}
+function parseOutput(data,dims,lb){let arr=Array.from(data),shape=dims.map(Number);let nc=2, n=0, trans=false;if(shape.length===3){if(shape[1]===4+nc||shape[1]===5+nc){n=shape[2];trans=true}else if(shape[2]===4+nc||shape[2]===5+nc){n=shape[1]}}if(!n){log('err','Unexpected model output shape: '+shape.join('×'));return []}const hasObj=(trans?shape[1]:shape[2])===5+nc;const ds=[];for(let k=0;k<n;k++){const get=(r,c)=>trans?arr[r*n+k]:arr[k*(4+nc+(hasObj?1:0))+c];let cx=get(0,k),cy=get(1,k),w=get(2,k),h=get(3,k),obj=hasObj?get(4,k):1,base=hasObj?5:4;let best=0,bv=0;for(let c=0;c<nc;c++){const v=get(base+c,k);if(v>bv){bv=v;best=c}}let conf=obj*bv;if(conf<CONFIG.conf)continue;let x=(cx-w/2-lb.px)/lb.s,y=(cy-h/2-lb.py)/lb.s;w/=lb.s;h/=lb.s;if(w<=1||h<=1)continue;const dr=displayRect();const sx=dr.s;ds.push({x:dr.x+x*sx,y:dr.y+y*sx,w:w*sx,h:h*sx,conf,class:best})}return nms(ds)}
+async function detect(){if(!state.modelLoaded||!state.session||video.readyState<2)return[];const lb=letterbox(),t=tensor(),inputName=state.session.inputNames[0];const out=await state.session.run({[inputName]:t});const name=state.session.outputNames[0],o=out[name];return parseOutput(o.data,o.dims,lb)}
+function create(det){const id=state.nextId++;state.tracks.set(id,{id,...det,prevCy:det.y+det.h/2,missed:0,crossed:false,last:performance.now()});state.counts.unique++}
+function updateTrack(t,d){const cy=d.y+d.h/2,prev=t.prevCy;Object.assign(t,d,{missed:0,last:performance.now()});const line=canvas.height*CONFIG.line;if(state.mode==='conveyor'&&!t.crossed){if(prev<line&&cy>=line){t.crossed=true;state.counts.entry++;const code=CONFIG.names[d.class]?.code||'UNK';state.classes[code]=(state.classes[code]||0)+1;log('ok',`Tyre #${t.id} — ${CONFIG.names[d.class]?.name||'Unknown'} — counted`)}}t.prevCy=cy}
+function track(ds){const used=new Set();for(const d of ds){let best=null,score=0;for(const t of state.tracks.values()){if(used.has(t.id)||t.missed>8)continue;const ov=iou(d,t);const dc=Math.hypot((d.x+d.w/2)-(t.x+t.w/2),(d.y+d.h/2)-(t.y+t.h/2));const s=ov+(dc<Math.max(canvas.width,canvas.height)*.12?.25:0);if((ov>.12||dc<Math.max(canvas.width,canvas.height)*.08)&&s>score){score=s;best=t}}if(best){used.add(best.id);updateTrack(best,d)}else create(d)}for(const t of state.tracks.values()){if(!used.has(t.id)){t.missed++}}for(const [id,t] of state.tracks)if(t.missed>15)state.tracks.delete(id);updateCounters()}
+function updateCounters(){$('entryCount').textContent=state.counts.entry;$('exitCount').textContent=state.counts.exit;$('visibleCount').textContent=[...state.tracks.values()].filter(t=>t.missed<5).length;$('uniqueTotal').textContent=state.counts.unique;for(const k of Object.keys(state.classes)){const e=$('cls'+k);if(e)e.textContent=state.classes[k]}}
+function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);if(state.toggles.countline&&state.mode==='conveyor'){const y=canvas.height*CONFIG.line;ctx.strokeStyle='#22c55e99';ctx.lineWidth=2;ctx.setLineDash([10,5]);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();ctx.setLineDash([])}for(const t of state.tracks.values()){if(t.missed>5)continue;const c=CONFIG.names[t.class]||{name:'Unknown',code:'UNK',color:'#9ca3af'};if(state.toggles.boxes){ctx.strokeStyle=c.color;ctx.lineWidth=2;ctx.strokeRect(t.x,t.y,t.w,t.h)}if(state.toggles.labels){ctx.font='bold 12px system-ui';ctx.fillStyle=c.color;ctx.fillText(`#${t.id} ${c.code} ${(t.conf*100).toFixed(0)}%`,t.x+4,Math.max(14,t.y+14));ctx.font='10px system-ui';ctx.fillStyle='#fff';ctx.fillText(c.name,t.x+4,Math.max(26,t.y+27))}}}
+async function loop(){if(!state.running)return;state.frame++;const now=performance.now();if(now-state.lastFps>=1000){state.fps=state.frame;$('fps').textContent=state.fps+' FPS';state.frame=0;state.lastFps=now}try{if(state.frame%state.inferEvery===0&&now-state.lastInfer>20){state.lastInfer=now;const ds=await detect();track(ds)}}catch(e){log('err','Inference error: '+e.message);state.inferEvery=3}draw();requestAnimationFrame(loop)}
+function reset(){state.tracks.clear();state.nextId=1;state.counts={entry:0,exit:0,unique:0};for(const k of Object.keys(state.classes))state.classes[k]=0;updateCounters();log('ok','Counts reset')}
+function csv(){let s='Timestamp,TrackID,Class,Code,Confidence,Event\n';const ts=new Date().toISOString();s+=`${ts},,Total Entry,,${state.counts.entry},count\n`;s+=`${ts},,Total Exit,,${state.counts.exit},count\n`;s+=`${ts},,Unique Total,,${state.counts.unique},count\n`;for(const[k,v]of Object.entries(state.classes))s+=`${ts},,${k},${k},${v},class-total\n`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='tirecycle-export-'+ts.slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);log('ok','CSV exported')}
+function query(q){const raw=(q||'').trim();const t=raw.toLowerCase();let a='',source='Local knowledge';const liveVisible=[...state.tracks.values()].filter(x=>x.missed<5).length;const truckCount=state.classes.TBR||0;const passengerCount=state.classes.PC||0;if(!raw){a='Type a question, for example: “How many truck tyres have been counted?”';source='Help';}else if(/how many|count|total|number|processed|counted/.test(t)){source='Live counter';if(/visible|on screen|right now|currently/.test(t)){a=`Currently visible tyres: ${liveVisible}. This is the number of active tracks the app currently sees.`;}else if(/truck|tbr|lorry|bus/.test(t)){a=`Truck/Bus tyres counted: ${truckCount}.`;}else if(/passenger|car/.test(t)){a=`Passenger tyres counted: ${passengerCount}.`;}else if(/entry/.test(t)){a=`Entry count: ${state.counts.entry}.`;}else if(/exit/.test(t)){a=`Exit count: ${state.counts.exit}.`;}else {a=`Current totals — Entry: ${state.counts.entry} | Exit: ${state.counts.exit} | Visible: ${liveVisible} | Unique tracks: ${state.counts.unique}.`;}}else if(/what can|which classes|classes|detect|model|onnx|best-3/.test(t)){a=state.knowledge.model;source='Model knowledge';}else{const aliases=[['tyre-derived fuel','TDF'],['tyre derived fuel','TDF'],['tdf','TDF'],['tyre-derived aggregate','TDA'],['tyre derived aggregate','TDA'],['tda','TDA'],['truck/bus radial','TBR'],['tbr','TBR'],['truck tyre','tire_truck'],['truck tire','tire_truck'],['tire_truck','tire_truck'],['tire truck','tire_truck'],['car tyre','tire_car'],['car tire','tire_car'],['tire_car','tire_car'],['tire car','tire_car'],['otr','OTR'],['off-the-road','OTR'],['recycling','recycling'],['shredding','shredding'],['crumb rubber','crumb rubber'],['granulation','granulation'],['steel','steel'],['fibre','fibre'],['fiber','fibre'],['radial','radial'],['bias','bias'],['sidewall','sidewall'],['load index','load index'],['speed rating','speed rating'],['passenger tyre','passenger'],['passenger tire','passenger'],['agricultural','agricultural'],['motorcycle','motorcycle']];let hit=null;for(const [phrase,key] of aliases){if(t.includes(phrase)){hit=key;break}}if(hit&&state.knowledge[hit]){a=state.knowledge[hit];source='Local knowledge';}else{for(const[k,v]of Object.entries(state.knowledge)){if(t.includes(k.toLowerCase())){a=v;hit=k;break}}if(!a)a='I can answer questions about the live counts, visible tyres, the best-3.onnx model, tire_car/tire_truck, TDF, TDA, OTR, tyre recycling, shredding, crumb rubber, steel, fibre and tyre terminology. Try one of the quick questions above.'}}$('queryResult').textContent=a;$('askSource').textContent=source;$('askTime').textContent=new Date().toLocaleTimeString()}
+$('startBtn').onclick=startCamera;$('pauseBtn').onclick=()=>state.running?stopCamera():startCamera;$('loadModelBtn').onclick=()=>$('modelInput').click();$('modelInput').onchange=e=>e.target.files[0]&&loadModel(e.target.files[0]);$('resetBtn').onclick=reset;$('exportBtn').onclick=csv;$('queryBtn').onclick=()=>query($('queryInput').value);$('queryInput').onkeydown=e=>{if(e.key==='Enter')query(e.target.value)};document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.mode=b.dataset.mode;$('mode').textContent=b.textContent});document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{const k=b.dataset.toggle;state.toggles[k]=!state.toggles[k];b.classList.toggle('active',state.toggles[k])});
+document.querySelectorAll('.ask-chip').forEach(b=>b.onclick=()=>{$('queryInput').value=b.dataset.q;query(b.dataset.q);});
+resize();status('ready','System ready');autoLoad();
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>log('warn','Service worker not registered: '+e.message)));
+</script></body></html>

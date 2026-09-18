@@ -1,108 +1,34 @@
-[
-  {
-    "title": "Model",
-    "keywords": [
-      "model",
-      "onnx",
-      "best-3.onnx",
-      "classes",
-      "detect",
+{
+  "vision_ai": {
+    "model": "best-3.onnx",
+    "input": "640x640",
+    "classes": [
       "tire_car",
       "tire_truck"
     ],
-    "answer": "The supplied best-3.onnx model is an object detector with two classes: tire_car and tire_truck. It should not be described as detecting OTR, agricultural, motorcycle, or industrial tyres unless a future model is trained with those classes."
+    "note": "The supplied model is a two-class detector; it is not a dedicated OTR/agricultural/motorcycle/industrial classifier."
   },
-  {
-    "title": "Bounding boxes",
-    "keywords": [
-      "bounding box",
-      "boxes",
-      "box",
-      "tracking"
-    ],
-    "answer": "Bounding boxes show where the model detects a tyre. Tracking associates detections across frames so the same tyre is not counted repeatedly. Detection quality depends on camera angle, lighting, tyre overlap, motion blur, and the model's training data."
-  },
-  {
-    "title": "Counting",
-    "keywords": [
-      "count",
-      "counting",
-      "count line",
-      "processed"
-    ],
-    "answer": "The app uses tracked detections and a counting line. A tyre is counted when its tracked centre crosses the configured line according to the current tracking rules."
-  },
-  {
-    "title": "TDF",
-    "keywords": [
-      "tdf",
-      "tyre derived fuel",
-      "tire derived fuel"
-    ],
-    "answer": "TDF means Tyre Derived Fuel (also commonly written Tire Derived Fuel). It is processed scrap-tyre material used as a fuel source in suitable industrial applications. Requirements vary by facility and jurisdiction."
-  },
-  {
-    "title": "TDA",
-    "keywords": [
-      "tda",
-      "tyre derived aggregate",
-      "tire derived aggregate"
-    ],
-    "answer": "TDA means Tyre Derived Aggregate. It is made from processed scrap tyres and can be used in certain civil-engineering applications where specifications and local requirements allow."
-  },
-  {
-    "title": "Recycling",
-    "keywords": [
-      "recycling",
-      "recycle",
-      "shredding",
-      "shredder",
-      "crumb rubber",
-      "granulation",
-      "steel"
-    ],
-    "answer": "Typical tyre recycling can include collection, inspection/sorting, shredding, separation of steel and fibre, further size reduction or granulation, and production of rubber products. The exact process depends on the feedstock and intended product."
-  },
-  {
-    "title": "Radial tyre",
-    "keywords": [
-      "radial",
-      "bias",
-      "sidewall",
-      "load index",
-      "speed rating"
-    ],
-    "answer": "A radial tyre uses radial-oriented carcass cords and is the dominant construction for many modern road vehicles. Tyre markings also communicate dimensions, load index, speed rating, and other specifications."
-  },
-  {
-    "title": "Vision AI limits",
-    "keywords": [
-      "accuracy",
-      "false detection",
-      "missed detection",
-      "limitation",
-      "limitations"
-    ],
-    "answer": "The browser cannot guarantee perfect detection or counting. Missed detections and false detections can occur, especially with occlusion, poor lighting, unusual tyre orientations, heavy overlap, blur, or scenes different from the training data. Validation against representative real footage is recommended."
-  },
-  {
-    "title": "Privacy",
-    "keywords": [
-      "privacy",
-      "camera",
-      "upload",
-      "data"
-    ],
-    "answer": "This PWA is designed to run inference in the browser. Camera/video frames and the ONNX model are processed locally by the page; the app itself does not need to upload camera frames to a server. ONNX Runtime Web is loaded from a public CDN."
-  },
-  {
-    "title": "Ozcom/Tyrecycle",
-    "keywords": [
-      "ozcom",
-      "tyrecycle",
-      "ozcom recycling",
-      "company"
-    ],
-    "answer": "Company-specific claims should be taken from the organisation's approved current documentation. This knowledge base avoids inventing branch counts, facilities, certifications, or operating statistics."
-  }
-]
+  "tire_car": "The supplied model's car/passenger-type detection class.",
+  "tire_truck": "The supplied model's truck-type detection class.",
+  "TDF": "Tyre-Derived Fuel: suitable processed tyre material can be used as an alternative fuel in some industrial applications. Exact specifications and approvals are facility- and jurisdiction-specific.",
+  "TDA": "Tyre-Derived Aggregate: processed tyre material used in selected civil-engineering applications such as lightweight fill and drainage-related uses. Exact specifications depend on the project and jurisdiction.",
+  "recycling": "Tyre recycling can include collection, sorting, size reduction, separation of rubber, steel and textile components, and production of rubber crumb, granules, steel and TDF.",
+  "shredding": "Shredding reduces whole tyres into smaller pieces for handling and further processing.",
+  "primary shredding": "The first major size-reduction stage in many tyre-processing systems.",
+  "secondary shredding": "Further size reduction after primary shredding for separation, granulation or product preparation.",
+  "crumb rubber": "Processed recycled tyre rubber in relatively small particles used in selected roads, sports/playground surfaces and manufactured products.",
+  "granulation": "Controlled size reduction that produces rubber particles for separation or product manufacture.",
+  "steel": "Tyres contain reinforcing steel. Magnetic separation can recover ferrous steel for appropriate recycling streams.",
+  "fibre": "Tyres contain textile/fibre reinforcement. Processing can separate fibre from rubber and steel.",
+  "OTR": "Off-The-Road tyres are used on heavy equipment such as mining and construction machinery. The current model has no OTR class.",
+  "agricultural": "Agricultural tyres are designed for farming machinery. The current model has no dedicated agricultural class.",
+  "motorcycle": "Motorcycle tyres are designed for two-wheeled vehicles. The current model has no dedicated motorcycle class.",
+  "radial": "A radial tyre uses radial-oriented carcass construction with reinforcing belts.",
+  "bias": "A bias or cross-ply tyre uses diagonal carcass plies and remains common in some specialty applications.",
+  "sidewall": "Sidewall markings can contain tyre size, construction, load index and speed rating. The current detector does not read sidewall markings as a dedicated OCR function.",
+  "load index": "The load index is a numerical code associated with the maximum load a tyre is designed to carry under specified conditions.",
+  "speed rating": "The speed rating is a tyre designation indicating the maximum speed capability under specified conditions.",
+  "passenger": "Passenger tyres are intended for cars and light passenger vehicles. The supplied model maps its car detection to tire_car.",
+  "ozcom": "Use approved Ozcom documentation for company-specific operational facts; this app should not invent site procedures, branch counts or acceptance rules.",
+  "tyrecycle": "Use approved Tyrecycle documentation for company-specific operational facts; this app should not invent branch counts or site-specific processes."
+}
